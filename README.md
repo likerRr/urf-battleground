@@ -1,2 +1,3 @@
-# urf-battleground
-Riot's API challenge
+# URF battleground
+
+More info soon

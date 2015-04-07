@@ -1,0 +1,5 @@
+suites:
+    main:
+        namespace: URFBattleground
+        psr4_prefix: URFBattleground
+        src_path: app

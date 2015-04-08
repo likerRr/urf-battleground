@@ -1,6 +1,6 @@
 <?php namespace URFBattleground\Managers\RiotApi;
 
-use URFBattleground\Managers\RiotApi\Api\Game;
+use URFBattleground\Managers\RiotApi\Api\ApiChallenge;
 use URFBattleground\Managers\RiotApi\Contracts\RiotApi as RiotApiContract;
 use URFBattleground\Managers\RiotApi\StaticData\Region;
 
@@ -12,23 +12,21 @@ class RiotApi implements RiotApiContract {
 	private $region;
 
 	/**
-	 * @return Game
+	 * @return ApiChallenge
 	 */
-	public function game()
+	public function apiChallenge()
 	{
-		// TODO check if region set globally
-		// TODO add Region trait
-		return new Api\Game($this->region->name());
+		return new Api\ApiChallenge($this->getGlobalRegion());
 	}
 
-	public function setRegion($region)
+	public function setGlobalRegion($region)
 	{
 		$this->region = new Region($region);
 
 		return $this;
 	}
 
-	public function getRegion()
+	public function getGlobalRegion()
 	{
 		return $this->region;
 	}

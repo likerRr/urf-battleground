@@ -2,13 +2,13 @@
 
 use URFBattleground\Managers\RiotApi\StaticData\Region;
 
-class Api {
+abstract class Api {
 
 	protected $apiVer;
-	protected $url;
+	protected $dryUrl;
 
 	/**
-	 * Default set of possible regions
+	 * Basic support of all regions
 	 * @var array
 	 */
 	protected $supportsRegions = [
@@ -21,7 +21,8 @@ class Api {
 		Region::NA,
 		Region::OCE,
 		Region::RU,
-		Region::TR
+		Region::TR,
+		Region::PBE,
 	];
 
 	/**
@@ -31,8 +32,10 @@ class Api {
 
 	public function __construct($region)
 	{
-		$this->setRegion($region);
-		$this->checkRegionSupport();
+		if ($region instanceof Region) {
+			$this->bindRegion($region);
+			$this->isApiSupportsRegion();
+		}
 	}
 
 	public function getPossibleRegions()
@@ -45,16 +48,25 @@ class Api {
 		return in_array($this->region->name(), $this->supportsRegions);
 	}
 
-	public function checkRegionSupport()
+	protected function isApiSupportsRegion()
 	{
 		if (!$this->isRegionSupports()) {
-			throw new \Exception('Unsupported region');
+			throw new \Exception('API doesn\'t support region');
 		}
+
+		return true;
 	}
 
-	public function setRegion($region)
+	public function bindRegion(Region $region) {
+		$this->region = $region;
+
+		return $this;
+	}
+
+	public function setRegion($regionName)
 	{
-		$this->region = new Region($region);
+		$this->region = new Region($regionName);
+		$this->isApiSupportsRegion();
 
 		return $this;
 	}
@@ -64,9 +76,12 @@ class Api {
 		return $this->region;
 	}
 
-	public function request()
-	{
-
+	/**
+	 * @param $dryUrl
+	 * @return ApiRequest
+	 */
+	protected function initApiRequest($dryUrl) {
+		return new ApiRequest($dryUrl, $this->region, $this->apiVer);
 	}
 
 }

@@ -1,23 +1,23 @@
 <?php namespace URFBattleground\Managers\RiotApi\Contracts;
 
-use URFBattleground\Managers\RiotApi\Api\Game;
+use URFBattleground\Managers\RiotApi\Api\ApiChallenge;
 
 interface RiotApi {
 
 	/**
-	 * @return Game
+	 * @return ApiChallenge
 	 */
-	public function game();
+	public function apiChallenge();
 
 	/**
 	 * @param $region
 	 * @return mixed
 	 */
-	public function setRegion($region);
+	public function setGlobalRegion($region);
 
 	/**
 	 * @return string
 	 */
-	public function getRegion();
+	public function getGlobalRegion();
 
 }

@@ -1,6 +1,7 @@
 <?php namespace URFBattleground\Http\Controllers;
 
 use URFBattleground\Managers\RiotApi\Contracts\RiotApi;
+use URFBattleground\Managers\RiotApi\StaticData\Region;
 
 class WelcomeController extends Controller {
 
@@ -20,15 +21,9 @@ class WelcomeController extends Controller {
 	 */
 	private $riotApi;
 
-	/**
-	 * Create a new controller instance.
-	 *
-	 * @return void
-	 */
 	public function __construct(RiotApi $riotApi)
 	{
-//		$this->riotApi = $riotApi->setRegion('ru');
-		$this->riotApi = $riotApi;
+		$this->riotApi = $riotApi->setGlobalRegion(Region::RU);
 		$this->middleware('guest');
 	}
 
@@ -39,8 +34,8 @@ class WelcomeController extends Controller {
 	 */
 	public function index()
 	{
-		$gameApi = $this->riotApi->game();
-		var_dump($gameApi);
+		$apiChallengeApi = $this->riotApi->apiChallenge();
+		$apiChallengeApi->gameIds(176208763);
 		return view('welcome');
 	}
 

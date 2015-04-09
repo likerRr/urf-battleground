@@ -1,5 +1,6 @@
 <?php namespace URFBattleground\Managers\RiotApi\Api;
 
+use GuzzleHttp\Client;
 use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\RiotApi\StaticData\Region;
 
@@ -10,6 +11,7 @@ class ApiRequest {
 	private $queryParameters = [];
 	private $pathParameters = [];
 	private $apiKey;
+	private $client;
 
 	/**
 	 * @var Region
@@ -23,6 +25,7 @@ class ApiRequest {
 		$this->apiVer = $apiVer;
 		$this->dryUrl = $dryUrl;
 		$this->apiKey = $apiKey;
+		$this->client = new Client();
 	}
 
 	public function setPathParameters($pathParameters) {

@@ -2,10 +2,11 @@
 
 use URFBattleground\Managers\RiotApi\StaticData\Region;
 
-abstract class Api {
+abstract class ApiAbstract {
 
 	protected $apiVer;
 	protected $dryUrl;
+	protected $apiKey;
 
 	/**
 	 * Basic support of all regions
@@ -36,6 +37,7 @@ abstract class Api {
 			$this->bindRegion($region);
 			$this->isApiSupportsRegion();
 		}
+		$this->apiKey = \Config::get('riotapi.apiKey');
 	}
 
 	public function getPossibleRegions()
@@ -45,7 +47,7 @@ abstract class Api {
 
 	public function isRegionSupports()
 	{
-		return in_array($this->region->name(), $this->supportsRegions);
+		return in_array($this->region->getName(), $this->supportsRegions);
 	}
 
 	protected function isApiSupportsRegion()
@@ -81,7 +83,7 @@ abstract class Api {
 	 * @return ApiRequest
 	 */
 	protected function initApiRequest($dryUrl) {
-		return new ApiRequest($dryUrl, $this->region, $this->apiVer);
+		return new ApiRequest($dryUrl, $this->region, $this->apiVer, $this->apiKey);
 	}
 
 }

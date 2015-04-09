@@ -16,6 +16,8 @@ class Region
 	const PBE = 'pbe';
 	const GLOB = 'global';
 
+	private $protocol = 'https';
+
 	private $availableRegions = [
 		self::BR => [
 			'platformId' => 'BR1',
@@ -99,9 +101,14 @@ class Region
 		return $this->availableRegions[$this->regionName]['host'];
 	}
 
-	public function name()
+	public function getName()
 	{
 		return $this->regionName;
+	}
+
+	public function getProtocol()
+	{
+		return $this->protocol . '://';
 	}
 
 }

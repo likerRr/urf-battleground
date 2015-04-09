@@ -2,7 +2,7 @@
 
 use URFBattleground\Managers\RiotApi\StaticData\Region;
 
-class ApiChallenge extends Api {
+class ApiChallenge extends ApiAbstract {
 
 	protected $apiVer = '4.1';
 	protected $region;
@@ -21,9 +21,9 @@ class ApiChallenge extends Api {
 	];
 
 	public function gameIds($beginDate) {
-		$request = $this->initApiRequest('/api/lol/{region}/v4.1/game/ids')->setQueryParameters([
+		$request = $this->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')->setQueryParameters([
 			'beginDate' => $beginDate
-		]);
+		])->make();
 	}
 
 }

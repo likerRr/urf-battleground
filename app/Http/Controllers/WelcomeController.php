@@ -2,7 +2,7 @@
 
 use Carbon\Carbon;
 use URFBattleground\Managers\Helpers;
-use URFBattleground\Managers\LolApi\LolApiContract;
+use URFBattleground\Managers\LolApi\LolApi;
 use URFBattleground\Managers\LolApi\Region;
 
 class WelcomeController extends Controller {
@@ -18,15 +18,15 @@ class WelcomeController extends Controller {
 	|
 	*/
 
-	/**
-	 * @var LolApiContract
-	 */
+	/** @var LolApi */
 	private $lolApi;
 
-	public function __construct(LolApiContract $lolApi)
+	public function __construct(LolApi $lolApi)
 	{
 		// global region for all api's
-		$this->lolApi = $lolApi->setRegion(Region::RU);
+		$this->lolApi = $lolApi
+			->setRegion(Region::RU)
+			->store(1);
 		$this->middleware('guest');
 	}
 
@@ -38,7 +38,7 @@ class WelcomeController extends Controller {
 		$regions = array_keys(Region::all());
 		try {
 			$time = 1427865900;
-			$carbon = Carbon::createFromTimestamp($time);
+			$carbon = Carbon::createFromTimestamp($time)->addDays(6);
 //			$times = 3;
 //			while ($times > 0) {
 //				foreach ($regions as $region) {

@@ -108,7 +108,7 @@ class Region {
 
 	/**
 	 * Returns all regions except $regions
-	 * @param $regions
+	 * @param $regions - region's name (single) or array of names (many)
 	 * @return array
 	 */
 	public static function except($regions)

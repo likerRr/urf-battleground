@@ -1,9 +1,14 @@
 <?php namespace URFBattleground\Managers\LolApi;
 
-class LolApi implements LolApiContract {
+use URFBattleground\Managers\LolApi\Api\ApiAbstract;
+use URFBattleground\Managers\LolApi\Traits\CacheBindingTrait;
+use URFBattleground\Managers\LolApi\Traits\RegionBindingTrait;
 
-	/** @var  Region */
-	private $region;
+class LolApi {
+
+	use RegionBindingTrait;
+	use CacheBindingTrait;
+
 	private static $apiKey;
 
 	public function __construct()
@@ -21,19 +26,17 @@ class LolApi implements LolApiContract {
 	 */
 	public function apiChallenge()
 	{
-		return new Api\Challenge($this->getRegion());
+		return $this->initApi(new Api\Challenge());
 	}
 
-	public function setRegion($region)
-	{
-		$this->region = new Region($region);
+	public function initApi(ApiAbstract $apiObj) {
+		$apiObj
+			->setRegion($this->getRegion())
+			->isApiSupportsRegion();
+		$apiObj
+			->store($this->liveTimeMinutes());
 
-		return $this;
-	}
-
-	public function getRegion()
-	{
-		return $this->region;
+		return $apiObj;
 	}
 
 }

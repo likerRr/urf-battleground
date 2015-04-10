@@ -22,9 +22,26 @@ class Challenge extends ApiAbstract {
 
 	public function gameIds($beginDate) {
 //		$this->region->getEndPoint()->setGlobal();
-		return $this->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')->setQueryParameters([
+		$request = $this->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')->setQueryParameters([
 			'beginDate' => $beginDate
-		])->make();
+		]);
+
+		return $this->requestResource($request);
+	}
+
+	public function requestResource(ApiRequest $request) {
+		$key = $request->getResource();
+		if (\Cache::has($key)) {
+			$response = \Cache::get($key);
+		} else {
+			$response = $request->make();
+
+			if ($response->isOk() && $this->liveTimeMinutes()) {
+				\Cache::put($key, $response, ($this->liveTimeMinutes()));
+			}
+		}
+
+		return $response;
 	}
 
 }

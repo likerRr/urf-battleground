@@ -6,7 +6,7 @@ class LolApiFacade extends Facade {
 
 	protected static function getFacadeAccessor()
 	{
-		return 'lolapi';
+		return 'URFBattleground\Managers\LolApi\LolApi';
 	}
 
 }

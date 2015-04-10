@@ -5,7 +5,8 @@ use GuzzleHttp\Exception\ClientException;
 use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\LolApi\Region;
 
-class ApiRequest {
+class ApiRequest
+{
 
 	private $dryUrl;
 	private $isGlobalEP = false;
@@ -30,19 +31,21 @@ class ApiRequest {
 			'base_url' => [
 				$this->getBaseUrl(), [
 					'region' => $this->region->getName(),
-					'apiVer' => 'v'.$this->apiVer
+					'apiVer' => 'v' . $this->apiVer
 				]
 			]
 		]);
 	}
 
-	public function setPathParameters($pathParameters) {
+	public function setPathParameters($pathParameters)
+	{
 		$this->pathParameters = Helpers::nullOrArray($pathParameters);
 
 		return $this;
 	}
 
-	public function setQueryParameters($queryParameters) {
+	public function setQueryParameters($queryParameters)
+	{
 		$this->queryParameters = Helpers::nullOrArray($queryParameters);
 
 		return $this;
@@ -53,11 +56,16 @@ class ApiRequest {
 		return $this->region->getEndPoint()->getHost() . $this->dryUrl;
 	}
 
+	public function getResource() {
+		return $this->client->getBaseUrl() . '?' . http_build_query($this->addApiKeyToQuery());
+	}
+
 	/**
 	 * @return ApiResponse
 	 * @throws \Exception
 	 */
-	public function make() {
+	public function make()
+	{
 		$queryParameters = $this->addApiKeyToQuery();
 
 		try {

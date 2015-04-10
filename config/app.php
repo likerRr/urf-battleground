@@ -149,7 +149,7 @@ return [
 		/*
 		 * Managers Service Providers
 		 */
-		'URFBattleground\Managers\RiotApi\RiotApiServiceProvider',
+		'URFBattleground\Managers\LolApi\LolApiServiceProvider',
 	],
 
 	/*
@@ -197,7 +197,7 @@ return [
 		'URL'       => 'Illuminate\Support\Facades\URL',
 		'Validator' => 'Illuminate\Support\Facades\Validator',
 		'View'      => 'Illuminate\Support\Facades\View',
-		'RiotApi'   => 'URFBattleground\Managers\RiotApi\RiotApiFacade'
+		'LolApi'   => 'URFBattleground\Managers\LolApi\LolApiFacade'
 
 	],
 

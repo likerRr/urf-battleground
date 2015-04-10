@@ -15,4 +15,16 @@ class Helpers {
 		return $parameters;
 	}
 
+	public static function logException(\Exception $e, $data = []) {
+		$generalData = [
+			'message' => $e->getMessage(),
+			'code' => $e->getCode(),
+			'file' => $e->getFile(),
+			'line' => $e->getLine(),
+//			'trace' => $e->getTraceAsString()
+		];
+
+		\Log::critical($e->getMessage(), array_merge($generalData, $data));
+	}
+
 }

@@ -1,43 +1,20 @@
-<?php  namespace URFBattleground\Managers\RiotApi\Api;
+<?php  namespace URFBattleground\Managers\LolApi\Api;
 
-use URFBattleground\Managers\RiotApi\StaticData\Region;
+use URFBattleground\Managers\LolApi\Region;
 
 abstract class ApiAbstract {
 
 	protected $apiVer;
 	protected $dryUrl;
-	protected $apiKey;
-
-	/**
-	 * Basic support of all regions
-	 * @var array
-	 */
-	protected $supportsRegions = [
-		Region::BR,
-		Region::EUNE,
-		Region::EUW,
-		Region::KR,
-		Region::LAN,
-		Region::LAS,
-		Region::NA,
-		Region::OCE,
-		Region::RU,
-		Region::TR,
-		Region::PBE,
-	];
-
-	/**
-	 * @var Region
-	 */
+	/** @var Region */
 	protected $region;
+
+	protected $supportsRegions = [];
 
 	public function __construct($region)
 	{
-		if ($region instanceof Region) {
-			$this->bindRegion($region);
-			$this->isApiSupportsRegion();
-		}
-		$this->apiKey = \Config::get('riotapi.apiKey');
+		$this->region = $region;
+		$this->isApiSupportsRegion();
 	}
 
 	public function getPossibleRegions()
@@ -59,12 +36,6 @@ abstract class ApiAbstract {
 		return true;
 	}
 
-	public function bindRegion(Region $region) {
-		$this->region = $region;
-
-		return $this;
-	}
-
 	public function setRegion($regionName)
 	{
 		$this->region = new Region($regionName);
@@ -83,7 +54,12 @@ abstract class ApiAbstract {
 	 * @return ApiRequest
 	 */
 	protected function initApiRequest($dryUrl) {
-		return new ApiRequest($dryUrl, $this->region, $this->apiVer, $this->apiKey);
+		return new ApiRequest(
+			$dryUrl,
+			$this->region,
+			$this->apiVer,
+			$this->region->getEndPoint()->isGlobal()
+		);
 	}
 
 }

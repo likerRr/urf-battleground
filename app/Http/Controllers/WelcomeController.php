@@ -1,7 +1,9 @@
 <?php namespace URFBattleground\Http\Controllers;
 
-use URFBattleground\Managers\RiotApi\Contracts\RiotApi;
-use URFBattleground\Managers\RiotApi\StaticData\Region;
+use Carbon\Carbon;
+use URFBattleground\Managers\Helpers;
+use URFBattleground\Managers\LolApi\LolApiContract;
+use URFBattleground\Managers\LolApi\Region;
 
 class WelcomeController extends Controller {
 
@@ -17,25 +19,42 @@ class WelcomeController extends Controller {
 	*/
 
 	/**
-	 * @var RiotApi
+	 * @var LolApiContract
 	 */
-	private $riotApi;
+	private $lolApi;
 
-	public function __construct(RiotApi $riotApi)
+	public function __construct(LolApiContract $lolApi)
 	{
-		$this->riotApi = $riotApi->setGlobalRegion(Region::RU);
+		// global region for all api's
+		$this->lolApi = $lolApi->setRegion(Region::RU);
 		$this->middleware('guest');
 	}
 
-	/**
-	 * Show the application welcome screen to the user.
-	 *
-	 * @return Response
-	 */
 	public function index()
 	{
-		$apiChallengeApi = $this->riotApi->apiChallenge();
-		$apiChallengeApi->gameIds(176208763);
+// first - 1427865900
+//		$apiChallengeApi = $this->lolApi->apiChallenge();
+		$apiChallengeApi = \LolApi::apiChallenge();
+		$regions = array_keys(Region::all());
+		try {
+			$time = 1427865900;
+			$carbon = Carbon::createFromTimestamp($time);
+//			$times = 3;
+//			while ($times > 0) {
+//				foreach ($regions as $region) {
+					// set local region for challenge api's
+					$response = $apiChallengeApi->setRegion('ru')->gameIds($carbon->getTimestamp());
+					var_dump($response->getResource(), $response->json());
+//				}
+//				$carbon->addMinutes(5);
+//				$times -= 1;
+//				var_dump('----');
+//			}
+//			var_dump(Region::$availableRegions);
+		} catch (\Exception $e) {
+			var_dump($e);
+			Helpers::logException($e);
+		}
 		return view('welcome');
 	}
 

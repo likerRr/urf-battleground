@@ -30,7 +30,7 @@ class WelcomeController extends Controller {
 		$this->middleware('guest');
 	}
 
-	public function index()
+	public function index(LolApi $lolApi)
 	{
 // first - 1427865900
 //		$apiChallengeApi = $this->lolApi->apiChallenge();
@@ -45,6 +45,8 @@ class WelcomeController extends Controller {
 					// set local region for challenge api's
 					$response = $apiChallengeApi->setRegion('ru')->gameIds($carbon->getTimestamp());
 					var_dump($response->getResource(), $response->json());
+					$response2 = $apiChallengeApi->repeatLastRequest();
+					var_dump($response2->getResource(), $response2->json());
 //				}
 //				$carbon->addMinutes(5);
 //				$times -= 1;

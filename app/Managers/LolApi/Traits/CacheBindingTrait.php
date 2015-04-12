@@ -2,22 +2,20 @@
 
 trait CacheBindingTrait {
 
-	private $seconds;
 	private $minutes;
 
 	public function store($minutes) {
-		$this->seconds = $minutes * 60;
 		$this->minutes = $minutes;
 
 		return $this;
 	}
 
-	public function liveTimeMinutes() {
+	/**
+	 * Time to store response in minutes
+	 * @return mixed
+	 */
+	public function storeTime() {
 		return $this->minutes;
-	}
-
-	public function liveTimeSeconds() {
-		return $this->seconds;
 	}
 
 }

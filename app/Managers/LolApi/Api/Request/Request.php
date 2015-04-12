@@ -1,11 +1,13 @@
-<?php namespace URFBattleground\Managers\LolApi\Api;
+<?php namespace URFBattleground\Managers\LolApi\Api\Request;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use URFBattleground\Managers\Helpers;
+use URFBattleground\Managers\LolApi\Api\Response\CachedResponse;
+use URFBattleground\Managers\LolApi\Api\Response\Response;
 use URFBattleground\Managers\LolApi\Region;
 
-class ApiRequest
+class Request
 {
 
 	private $dryUrl;
@@ -61,21 +63,27 @@ class ApiRequest
 	}
 
 	/**
-	 * @return ApiResponse
-	 * @throws \Exception
+	 * @param $storeTime
+	 * @return Response
 	 */
-	public function make()
+	public function make($storeTime)
 	{
 		$queryParameters = $this->addApiKeyToQuery();
+		$key = $this->getResource();
+		$cachedResponse = new CachedResponse($key);
 
 		try {
-			$response = $this->client->get(null, [
-				'query' => $queryParameters
-			]);
-			$apiResponse = new ApiResponse($response);
+			if ($cachedResponse->isCached()) {
+				$response = $cachedResponse;
+			} else {
+				$response = $this->client->get(null, [
+					'query' => $queryParameters
+				]);
+			}
+			$apiResponse = new Response($response, $storeTime);
 		} catch (ClientException $e) {
 			Helpers::logException($e, $this->handleClientException($e));
-			$apiResponse = new ApiResponse($e);
+			$apiResponse = new Response($e);
 		}
 
 		return $apiResponse;

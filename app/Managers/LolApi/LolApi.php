@@ -29,14 +29,15 @@ class LolApi {
 		return $this->initApi(new Api\Challenge());
 	}
 
-	public function initApi(ApiAbstract $apiObj) {
-		$apiObj
+	public function initApi(ApiAbstract $apiAbstract)
+	{
+		$apiAbstract
 			->setRegion($this->getRegion())
 			->isApiSupportsRegion();
-		$apiObj
-			->store($this->liveTimeMinutes());
+		$apiAbstract
+			->store($this->storeTime());
 
-		return $apiObj;
+		return $apiAbstract;
 	}
 
 }

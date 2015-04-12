@@ -1,12 +1,11 @@
-<?php namespace URFBattleground\Managers\LolApi\Api;
-
+<?php namespace URFBattleground\Managers\LolApi\Api\Response;
 
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Message\Response;
+use GuzzleHttp\Message\Response as ClientResponse;
 
-class ApiResponse {
+class Response {
 
-	/** @var Response|ClientException */
+	/** @var ClientResponse|ClientException|CachedResponse */
 	private $response;
 
 	/** @var  boolean */
@@ -14,22 +13,30 @@ class ApiResponse {
 	private $code;
 	private $message = '';
 	private $data = [];
-	private $isRateExceeded = false;
 	private $resource;
+	private $storeTime;
+	private $cached;
 
 	private $apiResponse;
 
-	public function __construct($response)
+	public function __construct($response, $storeTime = 0)
 	{
-		if (!($response instanceof Response) && !($response instanceof ClientException)) {
-			throw new \Exception('Response object can be instance of GuzzleHttp\Message\Response or GuzzleHttp\Exception\ClientException');
+		if (!($response instanceof ClientResponse) &&
+			!($response instanceof ClientException) &&
+			!($response instanceof CachedResponse)
+		) {
+			throw new \Exception(
+				'Response object can be instance of GuzzleHttp\Message\Response or GuzzleHttp\Exception\ClientException'
+			);
 		}
 
-		if ($response instanceof Response) {
+		if ($response instanceof ClientResponse || $storeTime) {
 			$this->ok = true;
 		}
 
+		$this->cached = ($response instanceof CachedResponse);
 		$this->response = $response;
+		$this->storeTime = $storeTime;
 		$this->buildApiResponse();
 	}
 
@@ -51,9 +58,23 @@ class ApiResponse {
 
 	private function handleOk()
 	{
-		$this->data = $this->response->json();
-		$this->code = $this->response->getStatusCode();
-		$this->resource = $this->response->getEffectiveUrl();
+		$key = $this->response->getEffectiveUrl();
+		if ($this->cached) {
+			$this->resource = $this->response->getEffectiveUrl();
+			$this->data = $this->response->getData();
+			$this->code = $this->response->getCode();
+		} else {
+			$this->resource = $this->response->getEffectiveUrl();
+			$this->data = $this->response->json();
+			$this->code = $this->response->getStatusCode();
+
+			$cachedResponse = [
+				'resource' => $this->resource,
+				'data' => $this->data,
+				'code' => $this->code
+			];
+			(new CachedResponse($key))->put($cachedResponse, $this->storeTime);
+		}
 	}
 
 	private function handleBad()
@@ -67,7 +88,7 @@ class ApiResponse {
 			$this->resource = $response->getEffectiveUrl();
 
 			if ($this->code == 429) {
-				$this->isRateExceeded = true;
+				throw new \Exception('Rate limit exceeded');
 			}
 		}
 	}
@@ -83,14 +104,6 @@ class ApiResponse {
 			'code' => array_get($extended, 'code', $this->getCode()),
 			'data' => array_get($extended, 'data', $this->getData()),
 		];
-	}
-
-	/**
-	 * @return boolean
-	 */
-	public function isIsRateExceeded()
-	{
-		return $this->isRateExceeded;
 	}
 
 	/**
@@ -110,7 +123,7 @@ class ApiResponse {
 	}
 
 	/**
-	 * @return ClientException|Response
+	 * @return ClientException|ClientResponse
 	 */
 	protected function getResponse() {
 		return $this->response;

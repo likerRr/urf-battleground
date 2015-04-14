@@ -2,13 +2,20 @@
 
 class LimitManager {
 
+	/** @var Limit[] array */
 	private $limits = [];
+	/** @var Limit[] array */
+	private $skippedLimits = [];
 
 	public function __construct(array $limits = [])
 	{
 		$this->addLimits($limits);
 	}
 
+	/**
+	 * @param array $limits
+	 * @return $this
+	 */
 	public function addLimits(array $limits)
 	{
 		foreach ($limits as $limit) {
@@ -18,24 +25,59 @@ class LimitManager {
 		return $this;
 	}
 
+	/**
+	 * @param $beats
+	 * @param $seconds
+	 */
 	public function addLimit($beats, $seconds)
 	{
 		$beats = (int) $beats;
 		$seconds = (int) $seconds;
-		$this->limits[] = new Limit($beats, $seconds);
-		$this->sortLimitsAsc();
+		if (isset($this->limits[$seconds])) {
+			$currentLimit = $this->limits[$seconds];
+			/** @var Limit $currentLimit */
+			if ($currentLimit->getBeats() > $beats) {
+				$this->limits[$seconds] = new Limit($beats, $seconds);
+			} else {
+				// skipped limits
+				$this->skippedLimits[] = new Limit($beats, $seconds);
+			}
+		} else {
+			$this->limits[$seconds] = new Limit($beats, $seconds);
+		}
+		ksort($this->limits);
+		$this->markIrrelevantLimits();
 	}
 
-	private function sortLimitsAsc()
+	/**
+	 * @return Limit[]
+	 */
+	public function getSkippedLimits()
 	{
-		usort($this->limits, function($limitOne, $limitTwo) {
-			/** @var Limit $limitOne */
-			/** @var Limit $limitTwo */
-			return $limitOne->getSeconds() >= $limitTwo->getSeconds() &&
-				$limitOne->getBeats() > $limitTwo->getBeats();
-		});
+		return $this->skippedLimits;
+	}
 
-		var_dump($this->limits);
+	/**
+	 * @void
+	 */
+	private function markIrrelevantLimits()
+	{
+		if (!empty($this->limits)) {
+			// the first limit will always be actual
+			/** @var Limit $firstLimit */
+			$firstLimit = current($this->limits)->setActual(true);
+			$tmpBeats = $firstLimit->getBeats();
+
+			/** @var Limit $next */
+			while ($next = next($this->limits)) {
+				if ($next->getBeats() < $tmpBeats) {
+					$next->setActual(false);
+				} else {
+					$next->setActual(true);
+					$tmpBeats = $next->getBeats();
+				}
+			}
+		}
 	}
 
 }

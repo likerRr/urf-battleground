@@ -4,27 +4,12 @@ class Limit {
 
 	private $beats;
 	private $seconds;
-	private $beatsPerSecond;
-	private $actual = true;
+	private $actual;
 
 	public function __construct($beats, $seconds)
 	{
 		$this->beats = $beats;
 		$this->seconds = $seconds;
-		$this->calculateBeatsPerSecond();
-	}
-
-	private function calculateBeatsPerSecond()
-	{
-		$this->beatsPerSecond = floatval($this->beats / $this->seconds);
-	}
-
-	/**
-	 * @return mixed
-	 */
-	public function getBeatsPerSecond()
-	{
-		return $this->beatsPerSecond;
 	}
 
 	/**

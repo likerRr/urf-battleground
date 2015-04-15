@@ -80,4 +80,31 @@ class LimitManager {
 		}
 	}
 
+	public function isLimitExceed()
+	{
+		// TODO
+		return false;
+	}
+
+	public function tick()
+	{
+		if ($this->isLimitExceed()) {
+			throw new \Exception('Limit exceed');
+		}
+		// TODO
+	}
+
+	public function getActualLimits()
+	{
+		$limits = [];
+		foreach ($this->limits as $limit) {
+			/** @var Limit $limit */
+			if ($limit->isActual()) {
+				$limits[] = $limit;
+			}
+		}
+
+		return $limits;
+	}
+
 }

@@ -15,7 +15,7 @@ class LolApi {
 	{
 		self::$apiKey = \Config::get('lolapi.apiKey');
 		$limits = \Config::get('lolapi.limits');
-		new LimitManager($limits);
+		LimitManager::init($limits);
 	}
 
 	public static function getApiKey()
@@ -34,8 +34,7 @@ class LolApi {
 	public function initApi(ApiAbstract $apiAbstract)
 	{
 		$apiAbstract
-			->setRegion($this->getRegion())
-			->isApiSupportsRegion();
+			->setRegion($this->getRegion());
 		$apiAbstract
 			->store($this->storeTime());
 

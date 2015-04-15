@@ -2,6 +2,8 @@
 
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Message\Response as ClientResponse;
+use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
+use URFBattleground\Managers\LolApi\Exception\UnknownResponseException;
 
 class Response {
 
@@ -25,9 +27,7 @@ class Response {
 			!($response instanceof ClientException) &&
 			!($response instanceof CachedResponse)
 		) {
-			throw new \Exception(
-				'Response object can be instance of GuzzleHttp\Message\Response or GuzzleHttp\Exception\ClientException'
-			);
+			throw new UnknownResponseException($response);
 		}
 
 		if ($response instanceof ClientResponse || $storeTime) {
@@ -87,9 +87,11 @@ class Response {
 			$this->message = $responseStatus['message'];
 			$this->resource = $response->getEffectiveUrl();
 
-			if ($this->code == 429) {
-				throw new \Exception('Rate limit exceeded');
-			}
+			// TODO think, do I really need this throw? Because after that I can't return pretty response
+//			if ($this->code == 429) {
+//				var_dump($this->getCommonResponse());
+//				throw new LimitExceedException;
+//			}
 		}
 	}
 

@@ -5,6 +5,8 @@ use GuzzleHttp\Exception\ClientException;
 use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\LolApi\Api\Response\CachedResponse;
 use URFBattleground\Managers\LolApi\Api\Response\Response;
+use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
+use URFBattleground\Managers\LolApi\LimitManager;
 use URFBattleground\Managers\LolApi\Region;
 
 class Request
@@ -65,6 +67,7 @@ class Request
 	/**
 	 * @param $storeTime
 	 * @return Response
+	 * @throws LimitExceedException
 	 */
 	public function make($storeTime)
 	{
@@ -76,9 +79,14 @@ class Request
 			if ($cachedResponse->isCached()) {
 				$response = $cachedResponse;
 			} else {
-				$response = $this->client->get(null, [
-					'query' => $queryParameters
-				]);
+				if (!LimitManager::isLimitExceed()) {
+					LimitManager::tickAllOrFail();
+					$response = $this->client->get(null, [
+						'query' => $queryParameters
+					]);
+				} else {
+					throw new LimitExceedException;
+				}
 			}
 			$apiResponse = new Response($response, $storeTime);
 		} catch (ClientException $e) {

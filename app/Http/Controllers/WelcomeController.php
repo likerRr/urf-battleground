@@ -2,6 +2,8 @@
 
 use Carbon\Carbon;
 use URFBattleground\Managers\Helpers;
+use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
+use URFBattleground\Managers\LolApi\LimitManager;
 use URFBattleground\Managers\LolApi\LolApi;
 use URFBattleground\Managers\LolApi\Region;
 
@@ -34,29 +36,36 @@ class WelcomeController extends Controller {
 	{
 // first - 1427865900
 //		$apiChallengeApi = $this->lolApi->apiChallenge();
+		LimitManager::resetAllCounters();
 		$apiChallengeApi = \LolApi::apiChallenge();
-		$regions = array_keys(Region::all());
+		$regions = Region::allExcept(Region::PBE);
+//		$regions = ['ru'];
 		try {
-			$time = 1427865900;
-			$carbon = Carbon::createFromTimestamp($time)->addDays(6);
-//			$times = 3;
-//			while ($times > 0) {
-//				foreach ($regions as $region) {
+			$times = 1;
+
+			foreach ($regions as $region) {
+				$time = 1427865900;
+				$carbon = Carbon::createFromTimestamp($time)->addDays(6);
+				while ($times > 0) {
+					var_dump('---- ' . $region . ' ----');
 					// set local region for challenge api's
-					$response = $apiChallengeApi->setRegion('ru')->gameIds($carbon->getTimestamp());
+					$response = $apiChallengeApi->setRegion($region)->gameIds($carbon->getTimestamp());
 					var_dump($response->getResource(), $response->json());
-					$response2 = $apiChallengeApi->repeatLastRequest();
-					var_dump($response2->getResource(), $response2->json());
-//				}
-//				$carbon->addMinutes(5);
-//				$times -= 1;
-//				var_dump('----');
-//			}
+//					$response2 = $apiChallengeApi->repeatLast();
+//					var_dump($response2->getResource(), $response2->json());
+					$carbon->addMinutes(5);
+				}
+				$times -= 1;
+			}
 //			var_dump(Region::$availableRegions);
+		} catch (ApiResponseException $e) {
+			var_dump($e->getMessage());
+			$apiChallengeApi->repeatLastUntilSuccess();
 		} catch (\Exception $e) {
-			var_dump($e);
+			var_dump($e->getMessage());
 			Helpers::logException($e);
 		}
+		var_dump('That\'s it!');
 		return view('welcome');
 	}
 

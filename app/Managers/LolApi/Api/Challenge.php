@@ -17,11 +17,11 @@ class Challenge extends ApiAbstract {
 		Region::OCE,
 		Region::RU,
 		Region::TR,
-		Region::PBE,
 	];
 
 	public function gameIds($beginDate) {
 //		$this->region->getEndPoint()->setGlobal();
+		$this->isApiSupportsRegion();
 		$request = $this->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')->setQueryParameters([
 			'beginDate' => $beginDate
 		]);

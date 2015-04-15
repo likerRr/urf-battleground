@@ -111,7 +111,7 @@ class Region {
 	 * @param $regions - region's name (single) or array of names (many)
 	 * @return array
 	 */
-	public static function except($regions)
+	public static function allExcept($regions)
 	{
 		if (is_string($regions)) {
 			$regions = (array)$regions;

@@ -3,103 +3,151 @@
 class LimitManager {
 
 	/** @var Limit[] array */
-	private $limits = [];
+	private static $limits = [];
 	/** @var Limit[] array */
-	private $skippedLimits = [];
+	private static $skippedLimits = [];
 
-	public function __construct(array $limits = [])
+	private function __construct() {}
+
+	public static function init(array $limits = []) {
+		self::addLimits($limits);
+	}
+
+	public static function resetAllCounters()
 	{
-		$this->addLimits($limits);
+		foreach (self::$limits as $limit) {
+			/** @var Limit $limit */
+			$limit->resetCounter();
+		}
 	}
 
 	/**
 	 * @param array $limits
 	 * @return $this
 	 */
-	public function addLimits(array $limits)
+	public static function addLimits(array $limits)
 	{
 		foreach ($limits as $limit) {
-			$this->addLimit($limit[0], $limit[1]);
+			self::addLimit($limit[0], $limit[1]);
 		}
-
-		return $this;
 	}
 
 	/**
 	 * @param $beats
 	 * @param $seconds
 	 */
-	public function addLimit($beats, $seconds)
+	public static function addLimit($beats, $seconds)
 	{
 		$beats = (int) $beats;
 		$seconds = (int) $seconds;
-		if (isset($this->limits[$seconds])) {
-			$currentLimit = $this->limits[$seconds];
+		if (isset(self::$limits[$seconds])) {
+			$currentLimit = self::$limits[$seconds];
 			/** @var Limit $currentLimit */
 			if ($currentLimit->getBeats() > $beats) {
-				$this->limits[$seconds] = new Limit($beats, $seconds);
+				self::$limits[$seconds] = new Limit($beats, $seconds);
 			} else {
 				// skipped limits
-				$this->skippedLimits[] = new Limit($beats, $seconds);
+				self::$skippedLimits[] = new Limit($beats, $seconds);
 			}
 		} else {
-			$this->limits[$seconds] = new Limit($beats, $seconds);
+			self::$limits[$seconds] = new Limit($beats, $seconds);
 		}
-		ksort($this->limits);
-		$this->markIrrelevantLimits();
+		ksort(self::$limits);
+		self::markIrrelevantLimits();
 	}
 
 	/**
 	 * @return Limit[]
 	 */
-	public function getSkippedLimits()
+	public static function getSkippedLimits()
 	{
-		return $this->skippedLimits;
+		return self::$skippedLimits;
 	}
 
 	/**
 	 * @void
 	 */
-	private function markIrrelevantLimits()
+	private static function markIrrelevantLimits()
 	{
-		if (!empty($this->limits)) {
+		if (!empty(self::$limits)) {
 			// the first limit will always be actual
 			/** @var Limit $firstLimit */
-			$firstLimit = current($this->limits)->setActual(true);
+			$firstLimit = current(self::$limits)->activate();
 			$tmpBeats = $firstLimit->getBeats();
 
 			/** @var Limit $next */
-			while ($next = next($this->limits)) {
+			while ($next = next(self::$limits)) {
 				if ($next->getBeats() < $tmpBeats) {
-					$next->setActual(false);
+					$next->deactivate();
 				} else {
-					$next->setActual(true);
+					$next->activate();
 					$tmpBeats = $next->getBeats();
 				}
 			}
 		}
 	}
 
-	public function isLimitExceed()
+	public static function isLimitExceed()
 	{
-		// TODO
-		return false;
-	}
-
-	public function tick()
-	{
-		if ($this->isLimitExceed()) {
-			throw new \Exception('Limit exceed');
+		if (empty(self::$limits)) {
+			return false;
 		}
-		// TODO
+
+		$result = false;
+		foreach (self::$limits as $limit) {
+			/** @var Limit $limit */
+			if ($limit->isExceed()) {
+				$result = true;
+				break;
+			}
+		}
+
+		return $result;
 	}
 
-	public function getActualLimits()
+	public static function nearestAvailableAfterSeconds()
+	{
+		if (empty(self::$limits)) {
+			return false;
+		}
+
+		$result = 0;
+		foreach (self::$limits as $limit) {
+			/** @var Limit $limit */
+			$result = $limit->willResetAfterSeconds();
+			break;
+		}
+
+		return (int) $result;
+	}
+
+	public static function tickAll() {
+		foreach (self::$limits as $limit) {
+			/** @var Limit $limit */
+			if (!$limit->tick()) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public static function tickAllOrFail()
+	{
+		foreach (self::$limits as $limit) {
+			/** @var Limit $limit */
+			$limit->tickOrFail();
+		}
+
+		return true;
+	}
+
+	public static function getActualLimits()
 	{
 		$limits = [];
-		foreach ($this->limits as $limit) {
+		foreach (self::$limits as $limit) {
 			/** @var Limit $limit */
-			if ($limit->isActual()) {
+			if ($limit->isActive()) {
 				$limits[] = $limit;
 			}
 		}

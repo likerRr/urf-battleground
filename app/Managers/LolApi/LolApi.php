@@ -10,12 +10,30 @@ class LolApi {
 	use CacheBindingTrait;
 
 	private static $apiKey;
+	private static $readyAfter;
+	private static $readyAt;
 
 	public function __construct()
 	{
 		self::$apiKey = \Config::get('lolapi.apiKey');
 		$limits = \Config::get('lolapi.limits');
-		LimitManager::init($limits);
+//		LimitManager::init($limits);
+	}
+
+	public static function setReadyAfter($seconds)
+	{
+		self::$readyAfter = $seconds;
+		self::$readyAt = time() + self::$readyAfter;
+	}
+
+	public static function getReadyAfter()
+	{
+		return self::$readyAfter;
+	}
+
+	public static function isReady()
+	{
+		return (time() >= (int)self::$readyAt);
 	}
 
 	public static function getApiKey()
@@ -36,7 +54,7 @@ class LolApi {
 		$apiAbstract
 			->setRegion($this->getRegion());
 		$apiAbstract
-			->store($this->storeTime());
+			->cache($this->cacheTime());
 
 		return $apiAbstract;
 	}

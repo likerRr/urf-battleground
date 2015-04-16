@@ -2,7 +2,13 @@
 
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Message\Response as ClientResponse;
+use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
+use URFBattleground\Managers\LolApi\Exception\Response\BadRequestException;
+use URFBattleground\Managers\LolApi\Exception\Response\InternalServerErrorException;
 use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
+use URFBattleground\Managers\LolApi\Exception\Response\NotFoundException;
+use URFBattleground\Managers\LolApi\Exception\Response\ServiceUnavailableException;
+use URFBattleground\Managers\LolApi\Exception\Response\UnauthorizedException;
 use URFBattleground\Managers\LolApi\Exception\UnknownResponseException;
 
 class Response {
@@ -18,6 +24,7 @@ class Response {
 	private $resource;
 	private $storeTime;
 	private $cached;
+	private $apiResponseException;
 
 	private $apiResponse;
 
@@ -30,7 +37,7 @@ class Response {
 			throw new UnknownResponseException($response);
 		}
 
-		if ($response instanceof ClientResponse || $storeTime) {
+		if ($response instanceof ClientResponse || $response instanceof CachedResponse || $storeTime) {
 			$this->ok = true;
 		}
 
@@ -54,6 +61,14 @@ class Response {
 	{
 		($this->isOk()) ? $this->handleOk() : $this->handleBad();
 		$this->apiResponse = $this->getCommonResponse();
+		$this->throwResponseExceptionIfSet();
+	}
+
+	private function throwResponseExceptionIfSet()
+	{
+		if ($this->apiResponseException instanceof ApiResponseException) {
+			throw $this->apiResponseException;
+		}
 	}
 
 	private function handleOk()
@@ -63,6 +78,9 @@ class Response {
 			$this->resource = $this->response->getEffectiveUrl();
 			$this->data = $this->response->getData();
 			$this->code = $this->response->getCode();
+			if ($this->storeTime === -1) {
+				$this->response->forget();
+			}
 		} else {
 			$this->resource = $this->response->getEffectiveUrl();
 			$this->data = $this->response->json();
@@ -77,6 +95,37 @@ class Response {
 		}
 	}
 
+	private function handleErrorCodes($code)
+	{
+		switch ($code) {
+			case 429: {
+				$this->apiResponseException = new LimitExceedException($this);
+				break;
+			}
+			case 400: {
+				$this->apiResponseException = new BadRequestException($this);
+				break;
+			}
+			case 401: {
+				$this->apiResponseException = new UnauthorizedException($this);
+				break;
+			}
+			case 404: {
+				$this->apiResponseException = new NotFoundException($this);
+				break;
+			}
+			case 500: {
+				$this->apiResponseException = new InternalServerErrorException($this);
+				break;
+			}
+			case 503: {
+				$this->apiResponseException = new ServiceUnavailableException($this);
+				break;
+			}
+			default: $this->apiResponseException = new ApiResponseException($this);
+		}
+	}
+
 	private function handleBad()
 	{
 		$response = $this->response->getResponse();
@@ -86,12 +135,7 @@ class Response {
 			$this->code = $responseStatus['status_code'];
 			$this->message = $responseStatus['message'];
 			$this->resource = $response->getEffectiveUrl();
-
-			// TODO think, do I really need this throw? Because after that I can't return pretty response
-//			if ($this->code == 429) {
-//				var_dump($this->getCommonResponse());
-//				throw new LimitExceedException;
-//			}
+			$this->handleErrorCodes($this->code);
 		}
 	}
 

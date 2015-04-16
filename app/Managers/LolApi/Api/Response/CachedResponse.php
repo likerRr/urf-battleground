@@ -4,29 +4,45 @@ class CachedResponse {
 
 	private $key;
 	private $cachedResponse;
-	private $inCache;
+	private $isInCache;
 
 	public function __construct($key)
 	{
 		$this->key = $key;
-		$this->inCache = \Cache::has($key);
+		$this->isInCache = \Cache::has($key);
 		$this->cachedResponse = \Cache::get($key, []);
 	}
 
+	public function forget()
+	{
+		if ($this->isCached()) {
+			\Cache::forget($this->key);
+		}
+	}
+
 	public function isCached() {
-		return $this->inCache;
+		return $this->isInCache;
 	}
 
 	public function put($data, $minutes) {
-		$cachedResponse = [
-			'data' => $data['data'],
-			'code' => $data['code'],
-			'resource' => $data['resource'],
-		];
-		\Cache::put($this->key, $data, $minutes);
-		$this->cachedResponse = $cachedResponse;
+		if ($minutes <= -1) {
+			\Cache::forget($this->key);
+		} else {
+			$cachedResponse = [
+				'data' => $data['data'],
+				'code' => $data['code'],
+				'resource' => $data['resource'],
+			];
+			\Cache::put($this->key, $data, $minutes);
+			$this->cachedResponse = $cachedResponse;
+		}
 
 		return $this;
+	}
+
+	public function getResponseData()
+	{
+		return $this->cachedResponse;
 	}
 
 	/**

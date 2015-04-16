@@ -3,6 +3,7 @@
 use URFBattleground\Managers\LolApi\Api\Request\Request;
 use URFBattleground\Managers\LolApi\Exception\ApiNotFoundException;
 use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
+use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
 use URFBattleground\Managers\LolApi\Exception\UnsupportedRegionException;
 use URFBattleground\Managers\LolApi\LimitManager;
 use URFBattleground\Managers\LolApi\Traits\CacheBindingTrait;
@@ -51,10 +52,10 @@ abstract class ApiAbstract {
 		);
 	}
 
-	public function requestResource(Request $request) {
+	protected function requestResource(Request $request) {
 		$this->lastApiRequest = $request;
 
-		return $request->make($this->storeTime());
+		return $request->make($this->cacheTime(), $this->isGetFromCache(), $this->isGetFromResource());
 	}
 
 	public function repeatLast() {
@@ -65,24 +66,22 @@ abstract class ApiAbstract {
 		return $this->requestResource($this->lastApiRequest);
 	}
 
-	public function repeatLastUntilSuccess() {
+	public function repeatLastUntilLimitPasses() {
 		if (!$this->lastApiRequest instanceof Request) {
 			throw new ApiNotFoundException;
 		}
 
 		try {
-			$sleepTime = LimitManager::nearestAvailableAfterSeconds();
-//			var_dump($sleepTime);die;
-			if ($sleepTime > 0) {
-				sleep($sleepTime);
+			if (!\LolApi::isReady()) {
+				sleep(\LolApi::getReadyAfter());
 			}
 
 			return $this->requestResource($this->lastApiRequest);
+		} catch (LimitExceedException $e) {
+			return $this->repeatLastUntilLimitPasses();
 		} catch (ApiResponseException $e) {
-			$this->repeatLastUntilSuccess();
+			return $e->getResponse();
 		}
-
-		return false;
 	}
 
 }

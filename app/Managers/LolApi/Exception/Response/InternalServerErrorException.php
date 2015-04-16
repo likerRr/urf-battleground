@@ -2,9 +2,9 @@
 
 use URFBattleground\Managers\LolApi\Api\Response\Response;
 
-class LimitExceedException extends ApiResponseException {
+class InternalServerErrorException extends ApiResponseException {
 
-	public function __construct(Response $response, $message = 'Limit Exceed', $code = 429, \Exception $previous = null)
+	public function __construct(Response $response, $message = 'Internal server error', $code = 500, \Exception $previous = null)
 	{
 		parent::__construct($response, $message, $code, $previous);
 	}

@@ -1,5 +1,6 @@
 <?php  namespace URFBattleground\Managers\LolApi\Api;
 
+use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\LolApi\Api\Request\Request;
 use URFBattleground\Managers\LolApi\Exception\ApiNotFoundException;
 use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
@@ -72,14 +73,12 @@ abstract class ApiAbstract {
 		}
 
 		try {
-			if (!\LolApi::isReady()) {
-				sleep(\LolApi::getReadyAfter());
-			}
-
 			return $this->requestResource($this->lastApiRequest);
 		} catch (LimitExceedException $e) {
 			return $this->repeatLastUntilLimitPasses();
 		} catch (ApiResponseException $e) {
+			// TODO here is the problem with limits! or no..?
+			Helpers::logException($e, ['from' => 'ApiAbstract::repeatLastUntilLimitPasses']);
 			return $e->getResponse();
 		}
 	}

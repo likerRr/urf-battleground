@@ -6,6 +6,7 @@ use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\LolApi\Api\Response\CachedResponse;
 use URFBattleground\Managers\LolApi\Api\Response\Response;
 use URFBattleground\Managers\LolApi\Exception\Response\NotFoundInCacheException;
+use URFBattleground\Managers\LolApi\Exception\UnexpectedException;
 use URFBattleground\Managers\LolApi\Region;
 
 class Request
@@ -63,23 +64,30 @@ class Request
 		return $this->client->getBaseUrl() . '?' . http_build_query($this->addApiKeyToQuery());
 	}
 
+	private function waitForReady()
+	{
+		if (!\LolApi::isReady()) {
+			sleep(\LolApi::getReadyAfter());
+		}
+	}
+
 	/**
 	 * @param $storeTime
 	 * @param bool $isGetCached
-	 * @param $isGetResource
+	 * @param bool $isGetResource
 	 * @return Response
-	 * @throws NotFoundInCacheException
+	 * @throws UnexpectedException
 	 */
 	public function make($storeTime, $isGetCached = true, $isGetResource = true)
 	{
-		$key = $this->getResource();
+		$this->waitForReady();
+		$key = CachedResponse::makeKey($this->getResource());
 		try {
 			if ($isGetCached && $isGetResource) {
 				$response = $this->makeCachedRequest($key);
 				if (!$response) {
 					$response = $this->makeResourceRequest();
 				}
-
 			} elseif ($isGetCached) {
 				$response = $this->makeCachedRequest($key, true);
 			} else {
@@ -87,8 +95,10 @@ class Request
 			}
 			$apiResponse = new Response($response, $storeTime);
 		} catch (ClientException $e) {
-//			Helpers::logException($e, $this->handleClientException($e));
 			$apiResponse = new Response($e);
+		} catch (\Exception $e) {
+			Helpers::logException($e, ['from' => 'Request::make']);
+			throw new UnexpectedException($e->getMessage(), $e->getCode(), $e);
 		}
 
 		return $apiResponse;
@@ -115,15 +125,6 @@ class Request
 		return $this->client->get(null, [
 			'query' => $queryParameters
 		]);
-	}
-
-	private function handleClientException(ClientException $e)
-	{
-		return [
-			'base_url' => $this->client->getBaseUrl(),
-			'query' => $e->getRequest()->getQuery(),
-			'body' => $e->getResponse()->json()
-		];
 	}
 
 	private function addApiKeyToQuery()

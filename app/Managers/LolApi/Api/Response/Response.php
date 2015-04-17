@@ -113,8 +113,7 @@ class Response {
 		switch ($code) {
 			case 429: {
 				$this->apiResponseException = new LimitExceedException($this);
-//				var_dump($this->response);
-				\LolApi::setReadyAfter(5);
+				\LolApi::setReadyAfter($this->response->getResponse()->getHeader('Retry-After'));
 				break;
 			}
 			case 400: {

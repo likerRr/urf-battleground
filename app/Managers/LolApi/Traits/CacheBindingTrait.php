@@ -1,5 +1,7 @@
 <?php namespace URFBattleground\Managers\LolApi\Traits;
 
+use URFBattleground\Managers\LolApi\Exception\UnexpectedException;
+
 trait CacheBindingTrait {
 
 	private $minutes;
@@ -8,7 +10,7 @@ trait CacheBindingTrait {
 
 	public function cache($minutes) {
 		if ($minutes <= 0) {
-			throw new \Exception('Minutes should has a positive value');
+			throw new UnexpectedException('Minutes should has a positive value');
 		}
 		$this->minutes = $minutes;
 

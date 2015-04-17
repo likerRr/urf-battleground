@@ -87,7 +87,7 @@ class Request
 			}
 			$apiResponse = new Response($response, $storeTime);
 		} catch (ClientException $e) {
-			Helpers::logException($e, $this->handleClientException($e));
+//			Helpers::logException($e, $this->handleClientException($e));
 			$apiResponse = new Response($e);
 		}
 

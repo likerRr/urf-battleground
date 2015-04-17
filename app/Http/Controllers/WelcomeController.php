@@ -31,8 +31,18 @@ class WelcomeController extends Controller {
 		// global region for all api's
 		$this->lolApi = $lolApi
 			->setRegion(Region::RU)
-			->cache(1);
+			->cache(99999);
 		$this->middleware('guest');
+	}
+
+	private function getHours($hours = 1)
+	{
+		return 12 * $hours;
+	}
+
+	private function getDays($days = 1)
+	{
+		return $this->getHours($days * 24);
 	}
 
 	public function index(LolApi $lolApi)
@@ -51,51 +61,72 @@ class WelcomeController extends Controller {
 
 //		$regions = ['ru'];
 //		try {
-			$times = 20;
-			$lastStamp = 0;
-			foreach ($regions as $region) {
-				$time = 1427867400;
-				$carbon = Carbon::createFromTimestamp($time);
-				while ($times > 0) {
-					try {
-						var_dump('---- ' . $region . ' at ' . $carbon->toDateTimeString() . ' ----');
-						// set local region for challenge api's
-						$response = $apiChallengeApi
-							->setRegion($region)
+		$oneHour = $this->getDays(1.5);
+		$initialTimes = $oneHour;
+		$times = $initialTimes;
+		$lastStamp = 0;
+		$startedAt = Carbon::now();
+		var_dump('--------> STARTED IN ' . $startedAt->toDateTimeString() . ' <--------');
+		$successes = 0;
+		$total = 0;
+		foreach ($regions as $region) {
+			$time = \Cache::get('last_timestamp');
+//			$time = 1428433500;
+			if (!$time) {
+				throw new \Exception('No timestamp specified');
+			}
+			$carbon = Carbon::createFromTimestamp($time);
+			while ($times > 0) {
+				try {
+//					var_dump('---- ' . $region . ' at ' . $carbon->toDateTimeString() . ' ----');
+					// set local region for challenge api's
+					$response = $apiChallengeApi
+						->setRegion($region)
 //							->notCache()
 //							->getResource()
-							->gameIds($carbon->getTimestamp());
-						$data = $response->getData();
-						foreach ($data as $gameId) {
-							GameId::create([
-								'game_id' => $gameId,
-								'region_id' => $regionsArr[$region],
-								'receive_at' => $carbon->getTimestamp()
-							]);
-						}
+						->gameIds($carbon->getTimestamp());
+					$data = $response->getData();
+					$insertData = [];
+					foreach ($data as $gameId) {
+						$insertData[] = [
+							'game_id' => $gameId,
+							'region_id' => $regionsArr[$region],
+							'receive_at' => $carbon->getTimestamp(),
+							'created_at' => new \DateTime,
+							'updated_at' => new \DateTime,
+						];
+					}
+					\DB::table('games_ids')->insert($insertData);
+					$successes++;
 //						var_dump($response->getResource(), $response->json());
-	//					$response2 = $apiChallengeApi->repeatLast();
-	//					var_dump($response2->getResource(), $response2->json());
-					} catch (LimitExceedException $e) {
-						var_dump('repeat for ' . $region . ' at ' . $carbon->getTimestamp());
-						$resp = $apiChallengeApi->repeatLastUntilLimitPasses();
+//					$response2 = $apiChallengeApi->repeatLast();
+//					var_dump($response2->getResource(), $response2->json());
+				} catch (LimitExceedException $e) {
+//					var_dump('repeat for ' . $region . ' at ' . $carbon->getTimestamp());
+					$resp = $apiChallengeApi->repeatLastUntilLimitPasses();
 //						var_dump($resp->getResource(), $resp->json());
-						echo 'has exited after repeat';
-					} catch (ApiResponseException $e) {
-						var_dump($e->getMessage(), $e->getResponse()->asArray());
-					} catch (\Exception $e) {
-						var_dump($e->getMessage());
-						Helpers::logException($e);
-					}
-					$carbon->addMinutes(5);
-					$times -= 1;
-					if ($lastStamp < $carbon->getTimestamp()) {
-						$lastStamp = $carbon->getTimestamp();
-					}
+//					echo 'has exited after repeat';
+					$successes++;
+				} catch (ApiResponseException $e) {
+//					var_dump($e->getMessage(), $e->getResponse()->asArray());
+				} catch (\Exception $e) {
+					var_dump("An exception: {$e->getMessage()}");
+					Helpers::logException($e);
 				}
-				$times = 20;
+				$carbon->addMinutes(5);
+				$times -= 1;
+				if ($lastStamp < $carbon->getTimestamp()) {
+					$lastStamp = $carbon->getTimestamp();
+				}
+				$total++;
 			}
-//			var_dump(Region::$availableRegions);
+			$times = $initialTimes;
+		}
+		\Cache::put('last_timestamp', $lastStamp, 99999);
+		var_dump('Successes: ' . $successes . '/' . $total);
+		var_dump('--------> FINISHED FOR ' . Carbon::instance($startedAt)->diffForHumans() . ' <--------');
+		var_dump('--------> ENDED IN ' . Carbon::now()->toDateTimeString() . ' <--------');
+//		var_dump(Region::$availableRegions);
 		var_dump('last stamp - ' . $lastStamp);
 		var_dump('That\'s it!');
 		return view('welcome');

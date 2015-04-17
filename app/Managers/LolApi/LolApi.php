@@ -16,7 +16,7 @@ class LolApi {
 	public function __construct()
 	{
 		self::$apiKey = \Config::get('lolapi.apiKey');
-		$limits = \Config::get('lolapi.limits');
+//		$limits = \Config::get('lolapi.limits');
 //		LimitManager::init($limits);
 	}
 

@@ -95,11 +95,26 @@ class Response {
 		}
 	}
 
+	private function handleBad()
+	{
+		$response = $this->response->getResponse();
+		$responseData = $response->json();
+		if (isset($responseData['status'])) {
+			$responseStatus = $responseData['status'];
+			$this->code = $responseStatus['status_code'];
+			$this->message = $responseStatus['message'];
+			$this->resource = $response->getEffectiveUrl();
+			$this->handleErrorCodes($this->code);
+		}
+	}
+
 	private function handleErrorCodes($code)
 	{
 		switch ($code) {
 			case 429: {
 				$this->apiResponseException = new LimitExceedException($this);
+//				var_dump($this->response);
+				\LolApi::setReadyAfter(5);
 				break;
 			}
 			case 400: {
@@ -123,19 +138,6 @@ class Response {
 				break;
 			}
 			default: $this->apiResponseException = new ApiResponseException($this);
-		}
-	}
-
-	private function handleBad()
-	{
-		$response = $this->response->getResponse();
-		$responseData = $response->json();
-		if (isset($responseData['status'])) {
-			$responseStatus = $responseData['status'];
-			$this->code = $responseStatus['status_code'];
-			$this->message = $responseStatus['message'];
-			$this->resource = $response->getEffectiveUrl();
-			$this->handleErrorCodes($this->code);
 		}
 	}
 

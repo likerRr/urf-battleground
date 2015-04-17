@@ -1,5 +1,7 @@
 <?php namespace URFBattleground\Managers\LolApi\Api\Response;
 
+use Illuminate\Support\Facades\Redis;
+
 class CachedResponse {
 
 	private $key;
@@ -8,7 +10,7 @@ class CachedResponse {
 
 	public function __construct($key)
 	{
-		$this->key = $key;
+		$this->key = md5('respkey_'.$key);
 		$this->isInCache = \Cache::has($key);
 		$this->cachedResponse = \Cache::get($key, []);
 	}

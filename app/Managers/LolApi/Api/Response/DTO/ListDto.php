@@ -2,6 +2,7 @@
 
 use URFBattleground\Managers\LolApi\Api\Response\Response;
 use URFBattleground\Managers\LolApi\Api\Response\ResponseDto;
+use URFBattleground\Managers\LolApi\Engine\Support\Collection;
 
 class ListDto extends ResponseDto {
 
@@ -14,7 +15,7 @@ class ListDto extends ResponseDto {
 	public function __construct(Response $response)
 	{
 		parent::__construct($response);
-		$this->list = new \ArrayIterator((array) $this->response()->getData());
+		$this->list = new Collection((array) $this->response()->getData());
 	}
 
 	/**

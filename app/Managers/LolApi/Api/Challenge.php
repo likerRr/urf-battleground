@@ -30,7 +30,7 @@ class Challenge extends ApiAbstract {
 //		$this->getRegion()->getEndPoint()->setGlobal();
 
 		$this->request = $this
-			->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')
+			->initApiRequest('/api/lol/{region}/v{apiVer}/game/ids')
 			->setQueryParameters([
 				'beginDate' => $beginDate
 			]);

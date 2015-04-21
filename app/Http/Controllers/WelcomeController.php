@@ -104,6 +104,7 @@ class WelcomeController extends Controller {
 	{
 		$this->catchExceptionsOnCall(function() use ($lolApi) {
 			$match = $lolApi->apiMatch()->setRegion(Region::NA)->byId(1778704162, 1);
+			var_dump($match);
 //			var_dump($match->getResource());
 //			dd($match->getData());
 		});
@@ -143,8 +144,8 @@ class WelcomeController extends Controller {
 		// TODO idleTime() - общее время простоя на лимитах
 //		$regions = ['ru'];
 //		try {
-		$initialTimes = $this->getDays(1);
-//		$initialTimes = 1;
+//		$initialTimes = $this->getDays(1);
+		$initialTimes = 1;
 //		$initialTimes = $this->getHours(1);
 		$times = $initialTimes;
 		$lastStamp = 0;
@@ -279,7 +280,7 @@ class WelcomeController extends Controller {
 			}
 			\DB::table('games_ids')->insert($insertData);
 			$this->dump(
-				'Resource ' . $response->getResource(),
+				'Resource ' . $response->response()->getResource(),
 				'Saved ' . count($insertData) . ' games'
 			);
 

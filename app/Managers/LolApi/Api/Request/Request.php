@@ -15,7 +15,7 @@ use URFBattleground\Managers\LolApi\Region;
 class Request
 {
 
-	private $dryUrl;
+	private $apiDryPath;
 	private $queryParameters = [];
 	private $pathParameters = [];
 	private $apiKey = '';
@@ -29,20 +29,20 @@ class Request
 	private $limitRequestsCount;
 
 	/**
-	 * @param $dryUrl
+	 * @param $apiDryPath
 	 * @param ApiAbstract $apiObject
 	 */
-	public function __construct($dryUrl, ApiAbstract $apiObject)
+	public function __construct($apiDryPath, ApiAbstract $apiObject)
 	{
 		$this->apiObject = $apiObject;
-		$this->dryUrl = $dryUrl;
+		$this->apiDryPath = $apiDryPath;
 		$this->apiKey = \LolApi::getApiKey();
-		$this->client = new Client([
-			'base_url' => $this->getBaseUrl()
-		]);
+//		$this->client = new Client([
+//			'base_url' => $this->getBaseUrl()
+//		]);
 		$this->setPathParameters([
 			'region' => $this->apiObject->getRegion()->getName(),
-			'apiVer' => 'v' . $this->apiObject->getApiVer()
+			'apiVer' => $this->apiObject->getApiVer()
 		]);
 	}
 
@@ -60,12 +60,12 @@ class Request
 		return $this;
 	}
 
-	private function getBaseUrl()
+	private function getHost()
 	{
 		return $this->apiObject->getRegion()->getEndPoint()->getHost();
 	}
 
-	private function getResource() {
+	private function getResourceUrl() {
 		return $this->client->getBaseUrl() . '?' . http_build_query($this->addApiKeyToQuery());
 	}
 
@@ -76,6 +76,18 @@ class Request
 		}
 	}
 
+	private function initClient()
+	{
+		$this->client = new Client([
+			'base_url' => [$this->getHost() . $this->apiDryPath, $this->pathParameters],
+			'defaults' => [
+				'query' => $this->queryParameters
+			]
+		]);
+
+		return $this->client;
+	}
+
 	/**
 	 * @return Response
 	 * @throws LimitExceedException
@@ -84,11 +96,12 @@ class Request
 	 */
 	public function make()
 	{
+		$this->initClient();
 		$apiObject = $this->apiObject;
 		$isGetCached = $apiObject->isGetFromCache();
 		$isGetResource = $apiObject->isGetFromResource();
 		$this->waitForReady();
-		$key = ResponseCached::makeKey($this->getResource());
+		$key = $this->getResourceUrl();
 
 		try {
 			if ($isGetCached && $isGetResource) {
@@ -170,8 +183,7 @@ class Request
 		$this->externalRequestsCount++;
 		$queryParameters = $this->addApiKeyToQuery();
 
-		return $this->client->get([$this->dryUrl, $this->pathParameters], [
-//		return $this->client->get([$this->dryUrl, []], [
+		return $this->client->get([$this->apiDryPath, $this->pathParameters], [
 			'query' => $queryParameters,
 		]);
 	}

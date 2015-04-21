@@ -31,7 +31,7 @@ class Match extends ApiAbstract {
 		$this->before();
 
 		$this->request = $this
-			->initApiRequest('/api/lol/{region}/v2.2/match/{matchId}')
+			->initApiRequest('/api/lol/{region}/v{apiVer}/match/{matchId}')
 			->setPathParameters([
 				'matchId' => $matchId
 			])

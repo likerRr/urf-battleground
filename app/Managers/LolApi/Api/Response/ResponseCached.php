@@ -9,15 +9,15 @@ class ResponseCached {
 
 	public function __construct($key)
 	{
-		$this->storage = \LolApi::getStorage();
 		$this->key = self::makeKey($key);
-		$this->isInCache = $this->storage->has($key);
-		$this->cachedResponse = $this->storage->get($key, []);
+		$this->storage = \LolApi::getStorage();
+		$this->isInCache = $this->storage->has($this->key);
+		$this->cachedResponse = $this->storage->get($this->key, []);
 	}
 
 	public static function makeKey($key)
 	{
-		return self::$prefix.':'.md5('respkey_' . $key);
+		return self::$prefix.':'.md5($key);
 	}
 
 	public function forget()

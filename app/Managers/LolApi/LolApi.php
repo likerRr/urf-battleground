@@ -130,6 +130,15 @@ class LolApi {
 		$apiAbstract
 			->setRegion($this->getRegion())
 			->cache($this->cacheTime());
+		if ($this->isGetFromCache() && $this->isGetFromResource()) {
+			$apiAbstract->getFromCacheOrResource();
+		} else {
+			if ($this->isGetFromResource()) {
+				$apiAbstract->getResource();
+			} elseif ($this->isGetFromCache()) {
+				$apiAbstract->getCached();
+			}
+		}
 		if ($this->isAutoRepeat()) {
 			$apiAbstract->autoRepeatOnLimitExceed($this->getRepeatAttempts());
 		} else {

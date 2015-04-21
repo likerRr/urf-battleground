@@ -2,10 +2,11 @@
 
 use URFBattleground\Managers\LolApi\Api\Response\Response;
 use URFBattleground\Managers\LolApi\Api\Response\ResponseDto;
+use URFBattleground\Managers\LolApi\Engine\Support\Collection;
 
 class MatchDetailDto extends ResponseDto {
 
-	use DtoUtilityTrait;
+//	use DtoUtilityTrait;
 
 	private $mapId;
 	private $matchCreation;
@@ -29,35 +30,35 @@ class MatchDetailDto extends ResponseDto {
 	public function __construct(Response $response)
 	{
 		parent::__construct($response);
-		$this->participantIdentities = new \ArrayIterator();
-		$this->participants = new \ArrayIterator();
-		$this->teams = new \ArrayIterator();
+		$this->participantIdentities = new Collection();
+		$this->participants = new Collection();
+		$this->teams = new Collection();
 
 		$data = $this->response()->getDataObj();
 		if (!empty($data)) {
 //			dd($data);
-			$this->matchId = $this->getVal($data, 'matchId');
-			$this->region = $this->getVal($data, 'region');
-			$this->platformId = $this->getVal($data, 'platformId');
-			$this->matchMode = $this->getVal($data, 'matchMode');
-			$this->matchType = $this->getVal($data, 'matchType');
-			$this->matchCreation = $this->getVal($data, 'matchCreation');
-			$this->matchDuration = $this->getVal($data, 'matchDuration');
-			$this->queueType = $this->getVal($data, 'queueType');
-			$this->mapId = $this->getVal($data, 'mapId');
-			$this->season = $this->getVal($data, 'season');
-			$this->matchVersion = $this->getVal($data, 'matchVersion');
+			$this->matchId = getVal($data, 'matchId');
+			$this->region = getVal($data, 'region');
+			$this->platformId = getVal($data, 'platformId');
+			$this->matchMode = getVal($data, 'matchMode');
+			$this->matchType = getVal($data, 'matchType');
+			$this->matchCreation = getVal($data, 'matchCreation');
+			$this->matchDuration = getVal($data, 'matchDuration');
+			$this->queueType = getVal($data, 'queueType');
+			$this->mapId = getVal($data, 'mapId');
+			$this->season = getVal($data, 'season');
+			$this->matchVersion = getVal($data, 'matchVersion');
 //			$this->participants = $data->participants;
-			$this->defineParticipantIdentities($this->getVal($data, 'participantIdentities', []));
-			var_dump($this);
+			$this->defineParticipantIdentities(getVal($data, 'participantIdentities', []));
+//			var_dump($this);
 //			$this->participantIdentities = $data->participantIdentities;
 //			$this->teams = $data->teams;
-//			$this->timeline = $this->getVal($data, 'timeline');
+//			$this->timeline = getVal($data, 'timeline');
 		}
 	}
 
 	private function defineParticipantIdentities($participantIdentities) {
-		$this->each($participantIdentities, function($value) {
+		eachVal($participantIdentities, function($value) {
 			$this->participantIdentities->append(new ParticipantIdentityDto($value));
 		});
 	}

@@ -14,7 +14,7 @@ trait CacheBindingTrait {
 	 * @throws UnexpectedException
 	 */
 	public function cache($minutes) {
-		if ($minutes <= 0) {
+		if ($minutes < -1) {
 			throw new UnexpectedException('Minutes should has a positive value');
 		}
 		$this->minutes = $minutes;

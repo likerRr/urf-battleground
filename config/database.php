@@ -64,6 +64,18 @@ return [
 			'strict'    => false,
 		],
 
+		'mysql.azure' => [
+			'driver'    => 'mysql',
+			'host'      => env('DB_HOST_AZURE', 'localhost'),
+			'database'  => env('DB_DATABASE_AZURE', ''),
+			'username'  => env('DB_USERNAME_AZURE', ''),
+			'password'  => env('DB_PASSWORD_AZURE', ''),
+			'charset'   => 'utf8',
+			'collation' => 'utf8_unicode_ci',
+			'prefix'    => '',
+			'strict'    => false,
+		],
+
 		'pgsql' => [
 			'driver'   => 'pgsql',
 			'host'     => env('DB_HOST', 'localhost'),

@@ -2,11 +2,13 @@
 
 use URFBattleground\Managers\Helpers;
 use URFBattleground\Managers\LolApi\Api\Request\Request;
+use URFBattleground\Managers\LolApi\Engine\Storage\StorageInterface;
 use URFBattleground\Managers\LolApi\Exception\ApiNotFoundException;
 use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
 use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
 use URFBattleground\Managers\LolApi\Exception\UnsupportedRegionException;
 use URFBattleground\Managers\LolApi\LimitManager;
+use URFBattleground\Managers\LolApi\Traits\AutoRepeatingOnLimitTrait;
 use URFBattleground\Managers\LolApi\Traits\CacheBindingTrait;
 use URFBattleground\Managers\LolApi\Traits\RegionBindingTrait;
 
@@ -14,11 +16,11 @@ abstract class ApiAbstract {
 
 	use RegionBindingTrait;
 	use CacheBindingTrait;
+	use AutoRepeatingOnLimitTrait;
 
 	protected $apiVer;
 	protected $dryUrl;
 	private $lastApiRequest;
-
 	protected $supportsRegions = [];
 
 	public function getPossibleRegions()
@@ -40,23 +42,23 @@ abstract class ApiAbstract {
 		return true;
 	}
 
+	public function getApiVer()
+	{
+		return $this->apiVer;
+	}
+
 	/**
 	 * @param $dryUrl
 	 * @return Request
 	 */
 	protected function initApiRequest($dryUrl) {
-		return new Request(
-			$dryUrl,
-			$this->region,
-			$this->apiVer,
-			$this->region->getEndPoint()->isGlobal()
-		);
+		return new Request($dryUrl, $this);
 	}
 
 	protected function requestResource(Request $request) {
 		$this->lastApiRequest = $request;
 
-		return $request->make($this->cacheTime(), $this->isGetFromCache(), $this->isGetFromResource());
+		return $request->make();
 	}
 
 	public function repeatLast() {
@@ -76,10 +78,15 @@ abstract class ApiAbstract {
 			return $this->requestResource($this->lastApiRequest);
 		} catch (LimitExceedException $e) {
 			return $this->repeatLastUntilLimitPasses();
+//		}
 		} catch (ApiResponseException $e) {
-			// TODO here is the problem with limits! or no..?
-			Helpers::logException($e, ['from' => 'ApiAbstract::repeatLastUntilLimitPasses']);
-			return $e->getResponse();
+			Helpers::logException($e, [
+				'from' => 'ApiAbstract::repeatLastUntilLimitPasses',
+				'resource' => $e->getResponse()->getResource(),
+				'data' => $e->getResponse()->json(),
+			]);
+//			return $e->getResponse();
+			throw $e;
 		}
 	}
 

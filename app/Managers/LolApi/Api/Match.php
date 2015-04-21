@@ -1,11 +1,12 @@
 <?php namespace URFBattleground\Managers\LolApi\Api;
 
 use URFBattleground\Managers\LolApi\Api\Response\Dto\ListDto;
+use URFBattleground\Managers\LolApi\Api\Response\Dto\MatchDetailDto;
 use URFBattleground\Managers\LolApi\Region;
 
-class Challenge extends ApiAbstract {
+class Match extends ApiAbstract {
 
-	protected $apiVer = '4.1';
+	protected $apiVer = '2.2';
 	private $request;
 
 	protected $supportsRegions = [
@@ -22,21 +23,24 @@ class Challenge extends ApiAbstract {
 	];
 
 	/**
-	 * @param $beginDate
-	 * @return ListDto
+	 * @param $matchId
+	 * @param bool $includeTimeline
+	 * @return Response\Response
 	 */
-	public function gameIds($beginDate) {
+	public function byId($matchId, $includeTimeline = false) {
 		$this->before();
-//		$this->getRegion()->getEndPoint()->setGlobal();
 
 		$this->request = $this
-			->initApiRequest('/api/lol/{region}/{apiVer}/game/ids')
+			->initApiRequest('/api/lol/{region}/v2.2/match/{matchId}')
+			->setPathParameters([
+				'matchId' => $matchId
+			])
 			->setQueryParameters([
-				'beginDate' => $beginDate
+				'includeTimeline' => (int) (bool) ($includeTimeline)
 			]);
 
-//		return $this->after();
-		return new ListDto($this->after());
+		return new MatchDetailDto($this->after());
+//		return new ListDto($this->after());
 	}
 
 	private function before() {

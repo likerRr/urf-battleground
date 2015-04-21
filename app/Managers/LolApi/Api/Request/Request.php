@@ -1,10 +1,13 @@
 <?php namespace URFBattleground\Managers\LolApi\Api\Request;
 
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use URFBattleground\Managers\Helpers;
-use URFBattleground\Managers\LolApi\Api\Response\CachedResponse;
+use URFBattleground\Managers\LolApi\Api\ApiAbstract;
+use URFBattleground\Managers\LolApi\Api\Response\ResponseCached;
 use URFBattleground\Managers\LolApi\Api\Response\Response;
+use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
 use URFBattleground\Managers\LolApi\Exception\Response\NotFoundInCacheException;
 use URFBattleground\Managers\LolApi\Exception\UnexpectedException;
 use URFBattleground\Managers\LolApi\Region;
@@ -13,54 +16,56 @@ class Request
 {
 
 	private $dryUrl;
-	private $isGlobalEP = false;
 	private $queryParameters = [];
 	private $pathParameters = [];
 	private $apiKey = '';
-	private $apiVer = '';
+	/** @var  ApiAbstract */
+	private $apiObject;
 
 	/** @var Client */
 	private $client;
-	/** @var  Region */
-	private $region;
+	private $externalRequestsCount = 0;
+	private $cachedRequestsCount = 0;
+	private $limitRequestsCount;
 
-	public function __construct($dryUrl, Region $region, $apiVer, $isGlobalEP)
+	/**
+	 * @param $dryUrl
+	 * @param ApiAbstract $apiObject
+	 */
+	public function __construct($dryUrl, ApiAbstract $apiObject)
 	{
-		$this->region = $region;
-		$this->apiVer = $apiVer;
+		$this->apiObject = $apiObject;
 		$this->dryUrl = $dryUrl;
-		$this->isGlobalEP = $isGlobalEP;
 		$this->apiKey = \LolApi::getApiKey();
 		$this->client = new Client([
-			'base_url' => [
-				$this->getBaseUrl(), [
-					'region' => $this->region->getName(),
-					'apiVer' => 'v' . $this->apiVer
-				]
-			]
+			'base_url' => $this->getBaseUrl()
+		]);
+		$this->setPathParameters([
+			'region' => $this->apiObject->getRegion()->getName(),
+			'apiVer' => 'v' . $this->apiObject->getApiVer()
 		]);
 	}
 
 	public function setPathParameters($pathParameters)
 	{
-		$this->pathParameters = Helpers::nullOrArray($pathParameters);
+		$this->pathParameters = array_merge($this->pathParameters, Helpers::nullOrArray($pathParameters));
 
 		return $this;
 	}
 
 	public function setQueryParameters($queryParameters)
 	{
-		$this->queryParameters = Helpers::nullOrArray($queryParameters);
+		$this->queryParameters = array_merge($this->queryParameters, Helpers::nullOrArray($queryParameters));
 
 		return $this;
 	}
 
 	private function getBaseUrl()
 	{
-		return $this->region->getEndPoint()->getHost() . $this->dryUrl;
+		return $this->apiObject->getRegion()->getEndPoint()->getHost();
 	}
 
-	public function getResource() {
+	private function getResource() {
 		return $this->client->getBaseUrl() . '?' . http_build_query($this->addApiKeyToQuery());
 	}
 
@@ -72,16 +77,19 @@ class Request
 	}
 
 	/**
-	 * @param $storeTime
-	 * @param bool $isGetCached
-	 * @param bool $isGetResource
 	 * @return Response
+	 * @throws LimitExceedException
 	 * @throws UnexpectedException
+	 * @throws \Exception
 	 */
-	public function make($storeTime, $isGetCached = true, $isGetResource = true)
+	public function make()
 	{
+		$apiObject = $this->apiObject;
+		$isGetCached = $apiObject->isGetFromCache();
+		$isGetResource = $apiObject->isGetFromResource();
 		$this->waitForReady();
-		$key = CachedResponse::makeKey($this->getResource());
+		$key = ResponseCached::makeKey($this->getResource());
+
 		try {
 			if ($isGetCached && $isGetResource) {
 				$response = $this->makeCachedRequest($key);
@@ -93,20 +101,59 @@ class Request
 			} else {
 				$response = $this->makeResourceRequest();
 			}
-			$apiResponse = new Response($response, $storeTime);
+			// handles only code 200 (OK) responses
+			$apiResponse = new Response($response, $apiObject->cacheTime());
 		} catch (ClientException $e) {
-			$apiResponse = new Response($e);
+			// handles 4XX codes
+			try {
+				$apiResponse = new Response($e);
+			} catch (LimitExceedException $e) {
+				// hook for limit exceed
+				$autoRepeatResult = $this->handleAutoRepeat();
+				if ($autoRepeatResult) {
+					return $autoRepeatResult;
+				}
+				// not auto-repeat or repeat times ended
+				throw $e;
+			}
 		} catch (\Exception $e) {
-			Helpers::logException($e, ['from' => 'Request::make']);
 			throw new UnexpectedException($e->getMessage(), $e->getCode(), $e);
 		}
 
 		return $apiResponse;
 	}
 
+	/**
+	 * @return bool|Response
+	 * @throws LimitExceedException
+	 * @throws UnexpectedException
+	 * @throws \Exception
+	 */
+	private function handleAutoRepeat()
+	{
+		$apiObject = $this->apiObject;
+
+		if ($apiObject->isAutoRepeat()) {
+			if ($apiObject->isRepeatUntilNotPass()) {
+				return $this->make();
+			} else {
+				if (empty($this->limitRequestsCount)) {
+					$this->limitRequestsCount = $apiObject->getRepeatAttempts();
+				}
+				if ($this->limitRequestsCount > 0) {
+					$this->limitRequestsCount--;
+					return $this->make();
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private function makeCachedRequest($key, $throwIfNotFound = false)
 	{
-		$cachedResponse = new CachedResponse($key);
+		$this->cachedRequestsCount++;
+		$cachedResponse = new ResponseCached($key);
 		if ($cachedResponse->isCached()) {
 			return $cachedResponse;
 		}
@@ -120,10 +167,12 @@ class Request
 
 	private function makeResourceRequest()
 	{
+		$this->externalRequestsCount++;
 		$queryParameters = $this->addApiKeyToQuery();
 
-		return $this->client->get(null, [
-			'query' => $queryParameters
+		return $this->client->get([$this->dryUrl, $this->pathParameters], [
+//		return $this->client->get([$this->dryUrl, []], [
+			'query' => $queryParameters,
 		]);
 	}
 

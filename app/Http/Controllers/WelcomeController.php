@@ -1,9 +1,13 @@
 <?php namespace URFBattleground\Http\Controllers;
 
 use Carbon\Carbon;
+use Redis;
 use URFBattleground\GameId;
+use URFBattleground\Managers\CacheStorage;
 use URFBattleground\Managers\Helpers;
+use URFBattleground\Managers\LolApi\Api\Response\Dto\ListDto;
 use URFBattleground\Managers\LolApi\Api\Response\Response;
+use URFBattleground\Managers\LolApi\Api\Response\ResponseDto;
 use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
 use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
 use URFBattleground\Managers\LolApi\Exception\Response\NotFoundException;
@@ -31,10 +35,17 @@ class WelcomeController extends Controller {
 	public function __construct(LolApi $lolApi)
 	{
 		set_time_limit(0);
+		ignore_user_abort(true);
+//		ini_set('xdebug.max_nesting_level', 300);
 		// global region for all api's
 		$this->lolApi = $lolApi
 			->setRegion(Region::RU)
-			->cache(99999);
+			->throwOnLimitExceed()
+			->autoRepeatOnLimitExceed()
+			->cache(99999)
+			->storage(new CacheStorage());
+//			->autoRepeatOnLimitExceed(5);
+//			->throwOnLimitExceed();
 		$this->middleware('guest');
 	}
 
@@ -48,19 +59,71 @@ class WelcomeController extends Controller {
 		return $this->getHours($days * 24);
 	}
 
+	private function updateDb()
+	{
+//		$db = \DB::connection('mysql.azure')->getReadPdo();
+		// max id = 2725471
+		$start = 2725471;
+		$period = 100000;
+		$end = $start - $period;
+		$total = 0;
+		$success = 0;
+		$fail = 0;
+		while ($start > 0) {
+			$games = GameId::on('mysql.azure')->where('id', '<', $start)->where('id', '>=', $end)->get();
+			if ($games->count() > 0) {
+				foreach ($games as $game) {
+					try {
+						GameId::create([
+							'game_id' => $game->game_id,
+							'region_id' => $game->region_id,
+							'receive_at' => $game->receive_at
+						]);
+						$success++;
+					} catch (\Exception $e) {
+						$this->dump($e->getMessage());
+						$fail++;
+					}
+				}
+			}
+			$count = count($games);
+			$start -= $period;
+			$end -= $period;
+			$total += $count;
+		}
+
+		$this->dump(
+			"total: {$total}",
+			"success: {$success}",
+			"fail: {$fail}"
+		);
+		die;
+	}
+
 	public function index(LolApi $lolApi)
 	{
+		$this->catchExceptionsOnCall(function() use ($lolApi) {
+			$match = $lolApi->apiMatch()->setRegion(Region::NA)->byId(1778704162, 1);
+//			var_dump($match->getResource());
+//			dd($match->getData());
+		});
+		die;
+//		$this->updateDb();
 // first - 1427865900
 //		$apiChallengeApi = $this->lolApi->apiChallenge();
 //		LimitManager::resetAllCounters();
 		$apiChallengeApi = \LolApi::apiChallenge();
 		$regions = Region::allExcept(Region::PBE);
 		$regionsModel = \URFBattleground\Region::all();
-		$time = \Cache::get('last_timestamp', 1428094800);
-//		$time = 1428094800;
-		$lastRegionId = GameId::where('receive_at', '<=', $time)->orderBy('id', 'desc')->first()->region_id;
-		if (empty($lastRegionId)) {
-			$lastRegionId = time();
+		// TODO check bad request response, e.g. for 1429697700
+//		$time = \Cache::get('last_timestamp', 1428094800);
+		$time = 1427865900;
+//		$lastGame = GameId::where('receive_at', '<=', $time)->orderBy('id', 'desc')->first();
+		$lastGame = '';
+		if (empty($lastGame)) {
+			$lastRegionId = 0;
+		} else {
+			$lastRegionId = $lastGame->region_id;
 		}
 
 		$regionsArr = [];
@@ -74,13 +137,15 @@ class WelcomeController extends Controller {
 				break;
 			}
 			if ($regionsArr[$regF] < $lastRegionId) {
-				unset($regions[$i]);
+//				unset($regions[$i]);
 			}
 		}
-
+		// TODO idleTime() - общее время простоя на лимитах
 //		$regions = ['ru'];
 //		try {
-		$initialTimes = $this->getDays(0.5);
+		$initialTimes = $this->getDays(1);
+//		$initialTimes = 1;
+//		$initialTimes = $this->getHours(1);
 		$times = $initialTimes;
 		$lastStamp = 0;
 		$startedAt = Carbon::now();
@@ -97,29 +162,29 @@ class WelcomeController extends Controller {
 				// set local region for challenge api's
 				$result = $this->catchExceptionsOnCall(function() use ($apiChallengeApi, $regionsArr, $region, $carbon) {
 					try {
-						return $apiChallengeApi
+						$games = $apiChallengeApi
 							->setRegion($region)
-//								->notCache()
-//								->getResource()
+//								->preventCaching()
+							->getResource()
 							->gameIds($carbon->getTimestamp());
+
+						return $games;
 					} catch (LimitExceedException $e) {
 						$this->dump(
 							$e->getMessage() . ', sleep for ' . \LolApi::getReadyAfter() . ' second(s)...'
 						);
-						return $this->catchExceptionsOnCall(function() use ($apiChallengeApi, $regionsArr, $region, $carbon) {
+						/** @var Response $respLimit */
+						$respLimit = $this->catchExceptionsOnCall(function() use ($apiChallengeApi, $regionsArr, $region, $carbon) {
 							return $apiChallengeApi->repeatLastUntilLimitPasses();
-						}, function($resp) use ($regionsArr, $region, $carbon) {
-							if (!$resp instanceof Response) {
-								return false;
-							}
-							return $this->saveResponse($resp, $regionsArr[$region], $carbon->getTimestamp());
 						});
+//						var_dump('json after limit '.$respLimit->json());
+						return $respLimit;
 					}
-				}, function($response) use ($regionsArr, $region, $carbon) {
-					if (!$response instanceof Response) {
+				}, function($responseDto) use ($regionsArr, $region, $carbon) {
+					if (!$responseDto instanceof ListDto) {
 						return false;
 					}
-					return $this->saveResponse($response, $regionsArr[$region], $carbon->getTimestamp());
+					return $this->saveResponse($responseDto, $regionsArr[$region], $carbon->getTimestamp());
 				});
 				$successes += ($result ? 1 : 0);
 
@@ -130,10 +195,11 @@ class WelcomeController extends Controller {
 					\Cache::put('last_timestamp', $lastStamp, 99999);
 				}
 				$total += 1;
+				$this->sendOutput();
 			}
 			$this->dump(
 				"End requests for \"{$region}\" region -> " . $carbon->toDateTimeString() . ', Successes: ' . $successes . ' / ' . $total
-			);
+			)->sendOutput();
 			$times = $initialTimes;
 		}
 		$this->dump(
@@ -145,10 +211,23 @@ class WelcomeController extends Controller {
 		return view('welcome');
 	}
 
+	private function sendOutput()
+	{
+		$status = ob_get_status(true);
+		$level = count($status);
+		if (!empty($status[$level]['del'])
+			|| (isset($status[$level]['flags'])
+				&& ($status[$level]['flags'] & PHP_OUTPUT_HANDLER_REMOVABLE)
+			)
+		) {
+			ob_end_flush();
+		}
+	}
+
 	private function catchExceptionsOnCall($func, $success = null)
 	{
 		/********************
-		 * ???? ??( ?-??) *
+		 *  ┬──┬ ノ(゜-゜ノ) *
 		 *******************/
 		if (is_callable($func)) {
 			try {
@@ -180,24 +259,34 @@ class WelcomeController extends Controller {
 		$dateTimeString = Carbon::now()->toDateTimeString();
 		var_dump("-----------------------------------------{$dateTimeString}-----------------------------------------");
 		call_user_func_array('var_dump', func_get_args());
+
+		return $this;
 	}
 
-	private function saveResponse(Response $response, $region, $received_at)
+	private function saveResponse(ListDto $response, $region, $received_at)
 	{
-		$data = $response->getData();
-		$insertData = [];
-		foreach ($data as $gameId) {
-			$insertData[] = [
-				'game_id' => $gameId,
-				'region_id' => $region,
-				'receive_at' => $received_at,
-				'created_at' => new \DateTime,
-				'updated_at' => new \DateTime,
-			];
-		}
-		\DB::table('games_ids')->insert($insertData);
+		$data = $response->getList();
+		if (!empty($data)) {
+			$insertData = [];
+			foreach ($data as $gameId) {
+				$insertData[] = [
+					'game_id' => $gameId,
+					'region_id' => $region,
+					'receive_at' => $received_at,
+					'created_at' => new \DateTime,
+					'updated_at' => new \DateTime,
+				];
+			}
+			\DB::table('games_ids')->insert($insertData);
+			$this->dump(
+				'Resource ' . $response->getResource(),
+				'Saved ' . count($insertData) . ' games'
+			);
 
-		return true;
+			return true;
+		}
+
+		return false;
 	}
 
 }

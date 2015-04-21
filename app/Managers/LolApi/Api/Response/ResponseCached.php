@@ -1,27 +1,29 @@
 <?php namespace URFBattleground\Managers\LolApi\Api\Response;
 
-class CachedResponse {
+class ResponseCached {
 
 	private $key;
 	private $cachedResponse;
 	private $isInCache;
+	private static $prefix = 'lolengine';
 
 	public function __construct($key)
 	{
+		$this->storage = \LolApi::getStorage();
 		$this->key = self::makeKey($key);
-		$this->isInCache = \Cache::has($key);
-		$this->cachedResponse = \Cache::get($key, []);
+		$this->isInCache = $this->storage->has($key);
+		$this->cachedResponse = $this->storage->get($key, []);
 	}
 
 	public static function makeKey($key)
 	{
-		return md5('respkey_' . $key);
+		return self::$prefix.':'.md5('respkey_' . $key);
 	}
 
 	public function forget()
 	{
 		if ($this->isCached()) {
-			\Cache::forget($this->key);
+			$this->storage->forget($this->key);
 		}
 	}
 
@@ -31,14 +33,15 @@ class CachedResponse {
 
 	public function put($data, $minutes) {
 		if ($minutes <= -1) {
-			\Cache::forget($this->key);
+			$this->storage->forget($this->key);
 		} else {
 			$cachedResponse = [
 				'data' => $data['data'],
+				'dataObj' => $data['dataObj'],
 				'code' => $data['code'],
 				'resource' => $data['resource'],
 			];
-			\Cache::put($this->key, $data, $minutes);
+			$this->storage->put($this->key, $data, $minutes);
 			$this->cachedResponse = $cachedResponse;
 		}
 
@@ -74,5 +77,11 @@ class CachedResponse {
 		return array_get($this->cachedResponse, 'data');
 	}
 
-
+	/**
+	 * @return mixed
+	 */
+	public function getDataObj()
+	{
+		return array_get($this->cachedResponse, 'dataObj');
+	}
 }

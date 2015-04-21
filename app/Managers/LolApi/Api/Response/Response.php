@@ -2,6 +2,7 @@
 
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Message\Response as ClientResponse;
+use URFBattleground\Managers\LolApi\Engine\Api\Constants\ResponseCode as Code;
 use URFBattleground\Managers\LolApi\Exception\Response\ApiResponseException;
 use URFBattleground\Managers\LolApi\Exception\Response\BadRequestException;
 use URFBattleground\Managers\LolApi\Exception\Response\InternalServerErrorException;
@@ -9,11 +10,12 @@ use URFBattleground\Managers\LolApi\Exception\Response\LimitExceedException;
 use URFBattleground\Managers\LolApi\Exception\Response\NotFoundException;
 use URFBattleground\Managers\LolApi\Exception\Response\ServiceUnavailableException;
 use URFBattleground\Managers\LolApi\Exception\Response\UnauthorizedException;
+use URFBattleground\Managers\LolApi\Exception\UnexpectedException;
 use URFBattleground\Managers\LolApi\Exception\UnknownResponseException;
 
 class Response {
 
-	/** @var ClientResponse|ClientException|CachedResponse */
+	/** @var ClientResponse|ClientException|ResponseCached */
 	private $response;
 
 	/** @var  boolean */
@@ -21,10 +23,19 @@ class Response {
 	private $code;
 	private $message = '';
 	private $data = [];
+	private $dataObj;
 	private $resource;
 	private $storeTime;
 	private $cached;
 	private $apiResponseException;
+	private $validErrorCodes = [
+		Code::SERVICE_UNAVAILABLE,
+		Code::INTERNAL_SERVER_ERROR,
+		Code::BAD_REQUEST,
+		Code::LIMIT_EXCEED,
+		Code::NOT_FOUND,
+		Code::UNAUTHORIZED
+	];
 
 	private $apiResponse;
 
@@ -32,18 +43,25 @@ class Response {
 	{
 		if (!($response instanceof ClientResponse) &&
 			!($response instanceof ClientException) &&
-			!($response instanceof CachedResponse)
+			!($response instanceof ResponseCached)
 		) {
 			throw new UnknownResponseException($response);
 		}
 
-		if ($response instanceof ClientResponse || $response instanceof CachedResponse || $storeTime) {
+		if ($response instanceof ClientException) {
+			if (!in_array($response->getCode(), $this->validErrorCodes)) {
+				throw new UnexpectedException($response->getMessage(), $response->getCode(), $response);
+			}
+		}
+
+		if ($response instanceof ClientResponse || $response instanceof ResponseCached || $storeTime) {
 			$this->ok = true;
 		}
 
-		$this->cached = ($response instanceof CachedResponse);
+		$this->cached = ($response instanceof ResponseCached);
 		$this->response = $response;
 		$this->storeTime = $storeTime;
+		$this->dataObj = new \stdClass();
 		$this->buildApiResponse();
 	}
 
@@ -77,6 +95,7 @@ class Response {
 		if ($this->cached) {
 			$this->resource = $this->response->getEffectiveUrl();
 			$this->data = $this->response->getData();
+			$this->dataObj = $this->response->getDataObj();
 			$this->code = $this->response->getCode();
 			if ($this->storeTime === -1) {
 				$this->response->forget();
@@ -84,14 +103,16 @@ class Response {
 		} else {
 			$this->resource = $this->response->getEffectiveUrl();
 			$this->data = $this->response->json();
+			$this->dataObj = $this->response->json(['object' => true]);
 			$this->code = $this->response->getStatusCode();
 
 			$cachedResponse = [
 				'resource' => $this->resource,
 				'data' => $this->data,
+				'dataObj' => $this->dataObj,
 				'code' => $this->code
 			];
-			(new CachedResponse($key))->put($cachedResponse, $this->storeTime);
+			(new ResponseCached($key))->put($cachedResponse, $this->storeTime);
 		}
 	}
 
@@ -111,28 +132,30 @@ class Response {
 	private function handleErrorCodes($code)
 	{
 		switch ($code) {
-			case 429: {
-				$this->apiResponseException = new LimitExceedException($this);
-				\LolApi::setReadyAfter($this->response->getResponse()->getHeader('Retry-After'));
-				break;
-			}
-			case 400: {
+			case Code::BAD_REQUEST: {
 				$this->apiResponseException = new BadRequestException($this);
 				break;
 			}
-			case 401: {
+			case Code::UNAUTHORIZED: {
 				$this->apiResponseException = new UnauthorizedException($this);
 				break;
 			}
-			case 404: {
+			case Code::NOT_FOUND: {
 				$this->apiResponseException = new NotFoundException($this);
 				break;
 			}
-			case 500: {
+			case Code::LIMIT_EXCEED: {
+				$this->apiResponseException = new LimitExceedException($this);
+				// plus one to not to get "Retry-After 0"
+				$readyAfter = (int) $this->response->getResponse()->getHeader('Retry-After');
+				\LolApi::setReadyAfter($readyAfter + 1);
+				break;
+			}
+			case Code::INTERNAL_SERVER_ERROR: {
 				$this->apiResponseException = new InternalServerErrorException($this);
 				break;
 			}
-			case 503: {
+			case Code::SERVICE_UNAVAILABLE: {
 				$this->apiResponseException = new ServiceUnavailableException($this);
 				break;
 			}
@@ -159,6 +182,14 @@ class Response {
 	public function getData()
 	{
 		return $this->data;
+	}
+
+	/**
+	 * @return mixed
+	 */
+	public function getDataObj()
+	{
+		return $this->dataObj;
 	}
 
 	/**

@@ -8,6 +8,11 @@ trait CacheBindingTrait {
 	private $getResource = true;
 	private $getCached = true;
 
+	/**
+	 * @param $minutes
+	 * @return $this
+	 * @throws UnexpectedException
+	 */
 	public function cache($minutes) {
 		if ($minutes <= 0) {
 			throw new UnexpectedException('Minutes should has a positive value');
@@ -17,7 +22,10 @@ trait CacheBindingTrait {
 		return $this;
 	}
 
-	public function notCache() {
+	/**
+	 * @return $this
+	 */
+	public function preventCaching() {
 		$this->minutes = -1;
 
 		return $this;

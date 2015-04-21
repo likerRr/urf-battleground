@@ -1,7 +1,12 @@
 <?php namespace URFBattleground\Managers\LolApi;
 
 use URFBattleground\Managers\LolApi\Api\ApiAbstract;
+use URFBattleground\Managers\LolApi\Engine\Exception\InvalidStorageInstanceException;
+use URFBattleground\Managers\LolApi\Engine\Storage\StorageInterface;
+use URFBattleground\Managers\LolApi\Engine\Storage\StorageProxy;
+use URFBattleground\Managers\LolApi\Engine\Dummy\StorageDummy;
 use URFBattleground\Managers\LolApi\Exception\InvalidApiKeyException;
+use URFBattleground\Managers\LolApi\Traits\AutoRepeatingOnLimitTrait;
 use URFBattleground\Managers\LolApi\Traits\CacheBindingTrait;
 use URFBattleground\Managers\LolApi\Traits\RegionBindingTrait;
 
@@ -9,11 +14,14 @@ class LolApi {
 
 	use RegionBindingTrait;
 	use CacheBindingTrait;
+	use AutoRepeatingOnLimitTrait;
 
 	private static $apiKey;
 	private static $readyAfter;
 	private static $readyAt;
 	private static $minDelayBeforeRequest;
+	/** @var StorageInterface */
+	private static $storage;
 
 	public function __construct()
 	{
@@ -21,8 +29,38 @@ class LolApi {
 		$config = config('lolengine');
 		self::setApiKey(array_get($config, 'apiKey'));
 		self::setMinDelayBeforeRequest(array_get($config, 'minDelayBeforeRequest', 0));
+		self::$storage = new StorageProxy(new StorageDummy());
+//		$this->cacheInstance->injectInstance(new LolEngineCacheStorage());
 //		$limits = \Config::get('lolapi.limits');
 //		LimitManager::init($limits);
+	}
+
+	/**
+	 * Set or get cache instance
+	 * @param null $instance
+	 * @return $this|StorageInterface
+	 * @throws InvalidStorageInstanceException
+	 */
+	public function storage($instance = null)
+	{
+		if (!empty($instance)) {
+			if (!$instance instanceof StorageInterface) {
+				throw new InvalidStorageInstanceException();
+			}
+			self::$storage->injectInstance($instance);
+
+			return $this;
+		}
+
+		return self::$storage;
+	}
+
+	/**
+	 * @return StorageInterface
+	 */
+	public static function getStorage()
+	{
+		return self::$storage;
 	}
 
 	public static function getMinDelayBeforeRequest()
@@ -46,9 +84,14 @@ class LolApi {
 		return self::$readyAfter;
 	}
 
+	public static function getReadyAt()
+	{
+		return self::$readyAt;
+	}
+
 	public static function isReady()
 	{
-		$readyAt = self::getReadyAfter() + self::getMinDelayBeforeRequest();
+		$readyAt = self::getReadyAt() + self::getMinDelayBeforeRequest();
 
 		return (time() >= $readyAt);
 	}
@@ -74,12 +117,24 @@ class LolApi {
 		return $this->initApi(new Api\Challenge());
 	}
 
+	/**
+	 * @return Api\Match
+	 */
+	public function apiMatch()
+	{
+		return $this->initApi(new Api\Match());
+	}
+
 	public function initApi(ApiAbstract $apiAbstract)
 	{
 		$apiAbstract
-			->setRegion($this->getRegion());
-		$apiAbstract
+			->setRegion($this->getRegion())
 			->cache($this->cacheTime());
+		if ($this->isAutoRepeat()) {
+			$apiAbstract->autoRepeatOnLimitExceed($this->getRepeatAttempts());
+		} else {
+			$apiAbstract->throwOnLimitExceed();
+		}
 
 		return $apiAbstract;
 	}
